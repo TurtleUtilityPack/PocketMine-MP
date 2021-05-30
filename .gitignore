@@ -35,8 +35,7 @@ Desktop.ini
 /docs/build/
 !/docs/requirements.txt
 
-# Composer
-vendor/*
+
 
 # Travis files
 test_data/*
