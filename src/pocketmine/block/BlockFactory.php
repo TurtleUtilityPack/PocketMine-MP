@@ -25,7 +25,9 @@ namespace pocketmine\block;
 
 use pocketmine\item\Item;
 use pocketmine\level\Position;
-use pocketmine\network\mcpe\convert\RuntimeBlockMapping;
+use pocketmine\network\mcpe\convert\block\MultiBlockMapping;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
+
 use function min;
 
 /**
@@ -433,8 +435,8 @@ class BlockFactory{
 	 * @internal
 	 * @deprecated
 	 */
-	public static function toStaticRuntimeId(int $id, int $meta = 0) : int{
-		return RuntimeBlockMapping::toStaticRuntimeId($id, $meta);
+	public static function toStaticRuntimeId(int $id, int $meta = 0, int $protocol = ProtocolInfo::CURRENT_PROTOCOL) : int{
+		return MultiBlockMapping::toStaticRuntimeId($id, $meta, $protocol);
 	}
 
 	/**
@@ -443,7 +445,7 @@ class BlockFactory{
 	 *
 	 * @return int[] [id, meta]
 	 */
-	public static function fromStaticRuntimeId(int $runtimeId) : array{
-		return RuntimeBlockMapping::fromStaticRuntimeId($runtimeId);
+	public static function fromStaticRuntimeId(int $runtimeId, int $protocol = ProtocolInfo::CURRENT_PROTOCOL) : array{
+		return MultiBlockMapping::fromStaticRuntimeId($runtimeId, $protocol);
 	}
 }

@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\utils\Binary;
 
 use pocketmine\network\mcpe\CachedEncapsulatedPacket;
 use pocketmine\network\mcpe\NetworkBinaryStream;
@@ -86,7 +86,8 @@ abstract class DataPacket extends NetworkBinaryStream{
 	 * @throws \OutOfBoundsException
 	 * @throws \UnexpectedValueException
 	 */
-	public function decode(){
+	public function decode(?int $protocol = null) {
+		$this->setProtocol($protocol);
 		$this->offset = 0;
 		$this->decodeHeader();
 		$this->decodePayload();
@@ -121,7 +122,8 @@ abstract class DataPacket extends NetworkBinaryStream{
 	/**
 	 * @return void
 	 */
-	public function encode(){
+	public function encode(?int $protocol = null) {
+		$this->setProtocol($protocol);
 		$this->reset();
 		$this->encodeHeader();
 		$this->encodePayload();

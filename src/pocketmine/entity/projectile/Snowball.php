@@ -30,8 +30,10 @@ class Snowball extends Throwable{
 	public const NETWORK_ID = self::SNOWBALL;
 
 	protected function onHit(ProjectileHitEvent $event) : void{
-		for($i = 0; $i < 6; ++$i){
-			$this->level->addParticle(new SnowballPoofParticle($this));
+		if($this->server->getProperty('definitions.particles.enabled', true) && $this->server->getProperty('definitions.particles.snowball-hit', true)) {
+			for($i = 0; $i < 6; ++$i){
+				$this->level->addParticle(new SnowballPoofParticle($this));
+			}
 		}
 	}
 }

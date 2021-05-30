@@ -26,6 +26,7 @@ namespace pocketmine\network\mcpe\protocol\types\inventory;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\NetworkBinaryStream as PacketSerializer;
 use pocketmine\network\mcpe\protocol\InventoryTransactionPacket;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\types\NetworkInventoryAction;
 
 class ReleaseItemTransactionData extends TransactionData{
@@ -49,7 +50,7 @@ class ReleaseItemTransactionData extends TransactionData{
 		return $this->hotbarSlot;
 	}
 
-	public function getItemInHand() : ItemStackWrapper{
+	public function getItemInHand() : ItemStackWrapper {
 		return $this->itemInHand;
 	}
 
@@ -64,14 +65,22 @@ class ReleaseItemTransactionData extends TransactionData{
 	protected function decodeData(PacketSerializer $stream) : void{
 		$this->actionType = $stream->getUnsignedVarInt();
 		$this->hotbarSlot = $stream->getVarInt();
-		$this->itemInHand = ItemStackWrapper::read($stream);
+		if($stream->getProtocol() >= ProtocolInfo::PROTOCOL_431) {
+			$this->itemInHand = ItemStackWrapper::read($stream, $stream->getProtocol());
+		} else {
+			$this->itemInHand = ItemStackWrapper::legacy($stream->getItemStack());
+		}
 		$this->headPos = $stream->getVector3();
 	}
 
 	protected function encodeData(PacketSerializer $stream) : void{
 		$stream->putUnsignedVarInt($this->actionType);
 		$stream->putVarInt($this->hotbarSlot);
-		$this->itemInHand->write($stream);
+		if($stream->getProtocol() >= ProtocolInfo::PROTOCOL_431) {
+			$this->itemInHand->write($stream);
+		} else {
+			$stream->putItemStack($this->itemInHand->getItemStack());
+		}
 		$stream->putVector3($this->headPos);
 	}
 

@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\utils\Binary;
 
 use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\utils\BinaryStream;
@@ -38,7 +38,7 @@ class LoginPacket extends DataPacket{
 	/** @var string */
 	public $username;
 	/** @var int */
-	public $protocol;
+	public $clientProtocol;
 	/** @var string */
 	public $clientUUID;
 	/** @var int */
@@ -78,16 +78,16 @@ class LoginPacket extends DataPacket{
 	}
 
 	public function mayHaveUnreadBytes() : bool{
-		return $this->protocol !== ProtocolInfo::CURRENT_PROTOCOL;
+		return false;
 	}
 
 	protected function decodePayload(){
-		$this->protocol = $this->getInt();
+		$this->clientProtocol = ((\unpack("N", $this->get(4))[1] << 32 >> 32));
 
 		try{
 			$this->decodeConnectionRequest();
 		}catch(\Throwable $e){
-			if($this->protocol === ProtocolInfo::CURRENT_PROTOCOL){
+			if($this->clientProtocol >= ProtocolInfo::MINIMAL_PROTOCOL){
 				throw $e;
 			}
 

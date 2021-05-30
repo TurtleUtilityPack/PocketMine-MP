@@ -23,9 +23,12 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\item\Consumable;
+use pocketmine\item\ItemFactory;
+use pocketmine\utils\Binary;
 
 use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\utils\ProtocolUtils;
 
 class ActorEventPacket extends DataPacket{
 	public const NETWORK_ID = ProtocolInfo::ACTOR_EVENT_PACKET;
@@ -97,16 +100,44 @@ class ActorEventPacket extends DataPacket{
 	public $event;
 	/** @var int */
 	public $data = 0;
+	/** @var int */
+	public $entityProtocol = -1;
 
 	protected function decodePayload(){
 		$this->entityRuntimeId = $this->getEntityRuntimeId();
-		$this->event = $this->getByte();
+		$this->event = (\ord($this->get(1)));
 		$this->data = $this->getVarInt();
 	}
 
 	protected function encodePayload(){
 		$this->putEntityRuntimeId($this->entityRuntimeId);
-		$this->putByte($this->event);
+		($this->buffer .= \chr($this->event));
+
+		
+		// Fixing eat event data
+		if($this->event === self::EATING_ITEM && ProtocolUtils::convertToEatingData($this->entityProtocol) !== ProtocolUtils::convertToEatingData($this->protocol)) {
+			// TODO: improve this!
+			$protocol_419_to_407 = [
+				35454976 => 27787264, 18087936 => 23986176, 17956864 => 23855104, 
+				17235968 => 20971520, 18939904 => 27000832, 17104896 => 19464192,
+				17039360 => 18481152, 17563648 => 22937600, 17629184 => 30343168,
+				18743296 => 30081024, 19005440 => 27066368, 17760256 => 23396352,
+				18612224 => 26214400, 18677760 => 29949952, 18350080 => 25690112,
+				18481152 => 25821184, 18284544 => 25624576, 18415616 => 25755648,
+				18546688 => 25952256, 16842752 => 17039360, 16908288 => 21102592,
+				16973824 => 30539776, 17825792 => 23592960, 17432576 => 30212096,
+				17498112 => 30277632, 18022400 => 23920640, 17170432 => 20905984,
+				17891328 => 23789568, 35389440 => 27721728, 18874368 => 26935296,
+				17301504 => 22872064, 17367040 => 30146560, 18219008 => 24576000,
+				18153472 => 24051712
+			];
+			if($this->entityProtocol >= ProtocolInfo::PROTOCOL_419) {
+				$this->data = $protocol_419_to_407[$this->data] ?? $this->data;
+			} else {
+				$data = array_search($this->data, $protocol_419_to_407, true);
+				$this->data = ($data === false) ? $this->data : $data;
+			}
+		}
 		$this->putVarInt($this->data);
 	}
 

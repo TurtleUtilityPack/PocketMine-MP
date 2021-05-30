@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\utils\Binary;
 
 use pocketmine\network\mcpe\NetworkSession;
 
@@ -48,12 +48,12 @@ class FilterTextPacket extends DataPacket/* implements ClientboundPacket, Server
 
 	protected function decodePayload() : void{
 		$this->text = $this->getString();
-		$this->fromServer = $this->getBool();
+		$this->fromServer = (($this->get(1) !== "\x00"));
 	}
 
 	protected function encodePayload() : void{
 		$this->putString($this->text);
-		$this->putBool($this->fromServer);
+		($this->buffer .= ($this->fromServer ? "\x01" : "\x00"));
 	}
 
 	public function handle(NetworkSession $handler) : bool{

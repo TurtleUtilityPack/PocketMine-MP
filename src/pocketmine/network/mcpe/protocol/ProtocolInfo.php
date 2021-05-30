@@ -36,12 +36,32 @@ interface ProtocolInfo{
 	 * This file is generated automatically, do not edit it manually.
 	 */
 
+	/** Minecraft 1.16.220 */
+	public const PROTOCOL_431 = 431;
+	/** Minecraft 1.16.210 */
+	public const PROTOCOL_428 = 428;
+	/** Minecraft 1.16.200 */
+	public const PROTOCOL_422 = 422;
+	/** Minecraft 1.16.100 */
+	public const PROTOCOL_419 = 419;
+	/** Minecraft 1.16.20 */
+	public const PROTOCOL_408 = 408;
+	/** Minecraft 1.16.0 */
+	public const PROTOCOL_407 = 407;
+	/** Minecraft 1.14.60 */
+	public const PROTOCOL_390 = 390;
+	/** Minecraft 1.14.0 */
+	public const PROTOCOL_389 = 389;
+
 	/** Actual Minecraft: PE protocol version */
 	public const CURRENT_PROTOCOL = 431;
+	/** Minimal Minecraft: PE protocol version */
+	public const MINIMAL_PROTOCOL = 389;
+
 	/** Current Minecraft PE version reported by the server. This is usually the earliest currently supported version. */
-	public const MINECRAFT_VERSION = 'v1.16.220';
+	public const MINECRAFT_VERSION = 'v1.14.0';
 	/** Version number sent to clients in ping responses. */
-	public const MINECRAFT_VERSION_NETWORK = '1.16.220';
+	public const MINECRAFT_VERSION_NETWORK = '1.14.0';
 
 	public const LOGIN_PACKET = 0x01;
 	public const PLAY_STATUS_PACKET = 0x02;
@@ -206,6 +226,5 @@ interface ProtocolInfo{
 	public const CORRECT_PLAYER_MOVE_PREDICTION_PACKET = 0xa1;
 	public const ITEM_COMPONENT_PACKET = 0xa2;
 	public const FILTER_TEXT_PACKET = 0xa3;
-	public const CLIENTBOUND_DEBUG_RENDERER_PACKET = 0xa4;
 
 }

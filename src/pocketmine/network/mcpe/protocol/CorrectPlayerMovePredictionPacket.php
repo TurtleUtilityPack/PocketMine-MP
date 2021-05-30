@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\utils\Binary;
 
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\NetworkSession;
@@ -60,14 +60,14 @@ class CorrectPlayerMovePredictionPacket extends DataPacket/* implements Clientbo
 	protected function decodePayload() : void{
 		$this->position = $this->getVector3();
 		$this->delta = $this->getVector3();
-		$this->onGround = $this->getBool();
+		$this->onGround = (($this->get(1) !== "\x00"));
 		$this->tick = $this->getUnsignedVarLong();
 	}
 
 	protected function encodePayload() : void{
 		$this->putVector3($this->position);
 		$this->putVector3($this->delta);
-		$this->putBool($this->onGround);
+		($this->buffer .= ($this->onGround ? "\x01" : "\x00"));
 		$this->putUnsignedVarLong($this->tick);
 	}
 

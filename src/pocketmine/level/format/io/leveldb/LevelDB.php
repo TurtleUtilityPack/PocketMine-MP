@@ -252,7 +252,7 @@ class LevelDB extends BaseLevelProvider{
 
 		$nbt = new LittleEndianNBTStream();
 		$buffer = $nbt->write($levelData);
-		file_put_contents($path . "level.dat", Binary::writeLInt(self::CURRENT_STORAGE_VERSION) . Binary::writeLInt(strlen($buffer)) . $buffer);
+		file_put_contents($path . "level.dat", (\pack("V", self::CURRENT_STORAGE_VERSION)) . (\pack("V", strlen($buffer))) . $buffer);
 
 		$db = self::createDB($path);
 
@@ -267,6 +267,9 @@ class LevelDB extends BaseLevelProvider{
 				$db->put(self::ENTRY_FLAT_WORLD_LAYERS, $out); //Add vanilla flatworld layers to allow terrain generation by MCPE to continue seamlessly
 			}
 		}
+
+		$db->close();
+
 	}
 
 	public function saveLevelData(){
@@ -275,7 +278,7 @@ class LevelDB extends BaseLevelProvider{
 
 		$nbt = new LittleEndianNBTStream();
 		$buffer = $nbt->write($this->levelData);
-		file_put_contents($this->getPath() . "level.dat", Binary::writeLInt(self::CURRENT_STORAGE_VERSION) . Binary::writeLInt(strlen($buffer)) . $buffer);
+		file_put_contents($this->getPath() . "level.dat", (\pack("V", self::CURRENT_STORAGE_VERSION)) . (\pack("V", strlen($buffer))) . $buffer);
 	}
 
 	public function getGenerator() : string{
@@ -542,7 +545,7 @@ class LevelDB extends BaseLevelProvider{
 	}
 
 	public static function chunkIndex(int $chunkX, int $chunkZ) : string{
-		return Binary::writeLInt($chunkX) . Binary::writeLInt($chunkZ);
+		return (\pack("V", $chunkX)) . (\pack("V", $chunkZ));
 	}
 
 	private function chunkExists(int $chunkX, int $chunkZ) : bool{
@@ -550,6 +553,6 @@ class LevelDB extends BaseLevelProvider{
 	}
 
 	public function close(){
-		unset($this->db);
+		$this->db->close();
 	}
 }

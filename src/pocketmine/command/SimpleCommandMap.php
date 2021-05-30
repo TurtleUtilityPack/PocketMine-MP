@@ -39,7 +39,6 @@ use pocketmine\command\defaults\HelpCommand;
 use pocketmine\command\defaults\KickCommand;
 use pocketmine\command\defaults\KillCommand;
 use pocketmine\command\defaults\ListCommand;
-use pocketmine\command\defaults\MeCommand;
 use pocketmine\command\defaults\OpCommand;
 use pocketmine\command\defaults\PardonCommand;
 use pocketmine\command\defaults\PardonIpCommand;
@@ -62,7 +61,6 @@ use pocketmine\command\defaults\TimingsCommand;
 use pocketmine\command\defaults\TitleCommand;
 use pocketmine\command\defaults\TransferServerCommand;
 use pocketmine\command\defaults\VanillaCommand;
-use pocketmine\command\defaults\VersionCommand;
 use pocketmine\command\defaults\WhitelistCommand;
 use pocketmine\command\utils\InvalidCommandSyntaxException;
 use pocketmine\Server;
@@ -92,48 +90,81 @@ class SimpleCommandMap implements CommandMap{
 	}
 
 	private function setDefaultCommands() : void{
-		$this->registerAll("pocketmine", [
-			new BanCommand("ban"),
-			new BanIpCommand("ban-ip"),
-			new BanListCommand("banlist"),
+		$server = Server::getInstance();
+		// default commands
+		$commands = [
 			new DefaultGamemodeCommand("defaultgamemode"),
-			new DeopCommand("deop"),
-			new DifficultyCommand("difficulty"),
 			new DumpMemoryCommand("dumpmemory"),
-			new EffectCommand("effect"),
-			new EnchantCommand("enchant"),
-			new GamemodeCommand("gamemode"),
+			new WhitelistCommand("whitelist"),
 			new GarbageCollectorCommand("gc"),
-			new GiveCommand("give"),
-			new HelpCommand("help"),
-			new KickCommand("kick"),
-			new KillCommand("kill"),
-			new ListCommand("list"),
-			new MeCommand("me"),
-			new OpCommand("op"),
-			new PardonCommand("pardon"),
 			new PardonIpCommand("pardon-ip"),
-			new ParticleCommand("particle"),
-			new PluginsCommand("plugins"),
-			new ReloadCommand("reload"),
-			new SaveCommand("save-all"),
 			new SaveOffCommand("save-off"),
-			new SaveOnCommand("save-on"),
-			new SayCommand("say"),
-			new SeedCommand("seed"),
-			new SetWorldSpawnCommand("setworldspawn"),
-			new SpawnpointCommand("spawnpoint"),
-			new StatusCommand("status"),
-			new StopCommand("stop"),
-			new TeleportCommand("tp"),
-			new TellCommand("tell"),
-			new TimeCommand("time"),
 			new TimingsCommand("timings"),
-			new TitleCommand("title"),
-			new TransferServerCommand("transferserver"),
-			new VersionCommand("version"),
-			new WhitelistCommand("whitelist")
-		]);
+			new BanListCommand("banlist"),
+			new SaveOnCommand("save-on"),
+			new PardonCommand("pardon"),
+			new SaveCommand("save-all"),
+			new StatusCommand("status"),
+			new BanIpCommand("ban-ip"),
+			new BanCommand("ban")
+		];
+		if($server->getProperty('definitions.commands.enabled', true)) {
+			if($server->getProperty('definitions.command.defaults.deop', true))
+				$commands[] = new DeopCommand('deop');
+			if($server->getProperty('definitions.command.defaults.op', true))
+				$commands[] = new OpCommand('op');
+
+			if($server->getProperty('definitions.command.defaults.stop', true))
+				$commands[] = new StopCommand('stop');
+			if($server->getProperty('definitions.command.defaults.reload', true))
+				$commands[] = new ReloadCommand('reload');
+
+			if($server->getProperty('definitions.command.defaults.transferserver', true))
+				$commands[] = new TransferServerCommand('transferserver');
+			if($server->getProperty('definitions.command.defaults.setworldspawn', true))
+				$commands[] = new SetWorldSpawnCommand('setworldspawn');
+			
+			if($server->getProperty('definitions.command.defaults.spawnpoint', true))
+				$commands[] = new SpawnpointCommand('spawnpoint');
+			if($server->getProperty('definitions.command.defaults.difficulty', true))
+				$commands[] = new DifficultyCommand('difficulty');
+			
+			if($server->getProperty('definitions.command.defaults.teleport', true))
+				$commands[] = new TeleportCommand('tp');
+			if($server->getProperty('definitions.command.defaults.gamemode', true))
+				$commands[] = new GamemodeCommand('gamemode');
+			
+			if($server->getProperty('definitions.command.defaults.plugins', true))
+				$commands[] = new PluginsCommand('plugins');
+			if($server->getProperty('definitions.command.defaults.enchant', true))
+				$commands[] = new EnchantCommand('enchant');
+
+			if($server->getProperty('definitions.command.defaults.effect', true))
+				$commands[] = new EffectCommand('effect');
+			if($server->getProperty('definitions.command.defaults.title', true))
+				$commands[] = new TitleCommand('title');
+
+			if($server->getProperty('definitions.command.defaults.kill', true))
+				$commands[] = new KillCommand('kill');
+			if($server->getProperty('definitions.command.defaults.help', true))
+				$commands[] = new HelpCommand('help');
+
+			if($server->getProperty('definitions.command.defaults.give', true))
+				$commands[] = new GiveCommand('give');
+			if($server->getProperty('definitions.command.defaults.list', true))
+				$commands[] = new ListCommand('list');
+
+			if($server->getProperty('definitions.command.defaults.seed', true))
+				$commands[] = new SeedCommand('seed');
+			if($server->getProperty('definitions.command.defaults.time', true))
+				$commands[] = new TimeCommand('time');
+
+			if($server->getProperty('definitions.command.defaults.say', true))
+				$commands[] = new SayCommand('say');
+			if($server->getProperty('definitions.command.defaults.tell', true))
+				$commands[] = new TellCommand('tell');
+		}
+		$this->registerAll("pocketmine", $commands);
 	}
 
 	public function registerAll(string $fallbackPrefix, array $commands){
@@ -162,7 +193,6 @@ class SimpleCommandMap implements CommandMap{
 		if(!$registered){
 			$command->setLabel($fallbackPrefix . ":" . $label);
 		}
-
 		$command->register($this);
 
 		return $registered;
@@ -181,7 +211,7 @@ class SimpleCommandMap implements CommandMap{
 	}
 
 	private function registerAlias(Command $command, bool $isAlias, string $fallbackPrefix, string $label) : bool{
-		$this->knownCommands[$fallbackPrefix . ":" . $label] = $command;
+		// $this->knownCommands[$fallbackPrefix . ":" . $label] = $command;
 		if(($command instanceof VanillaCommand or $isAlias) and isset($this->knownCommands[$label])){
 			return false;
 		}

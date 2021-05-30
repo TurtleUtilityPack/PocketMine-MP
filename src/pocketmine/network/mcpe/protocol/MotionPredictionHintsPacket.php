@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\utils\Binary;
 
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\NetworkSession;
@@ -55,13 +55,13 @@ class MotionPredictionHintsPacket extends DataPacket/* implements ClientboundPac
 	protected function decodePayload() : void{
 		$this->entityRuntimeId = $this->getEntityRuntimeId();
 		$this->motion = $this->getVector3();
-		$this->onGround = $this->getBool();
+		$this->onGround = (($this->get(1) !== "\x00"));
 	}
 
 	protected function encodePayload() : void{
 		$this->putEntityRuntimeId($this->entityRuntimeId);
 		$this->putVector3($this->motion);
-		$this->putBool($this->onGround);
+		($this->buffer .= ($this->onGround ? "\x01" : "\x00"));
 	}
 
 	public function handle(NetworkSession $handler) : bool{

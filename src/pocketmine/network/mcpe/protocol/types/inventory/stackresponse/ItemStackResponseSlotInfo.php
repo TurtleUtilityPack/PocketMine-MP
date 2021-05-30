@@ -37,16 +37,13 @@ final class ItemStackResponseSlotInfo{
 	private $itemStackId;
 	/** @var string */
 	private $customName;
-	/** @var int */
-	private $durabilityCorrection;
 
-	public function __construct(int $slot, int $hotbarSlot, int $count, int $itemStackId, string $customName, int $durabilityCorrection){
+	public function __construct(int $slot, int $hotbarSlot, int $count, int $itemStackId, string $customName){
 		$this->slot = $slot;
 		$this->hotbarSlot = $hotbarSlot;
 		$this->count = $count;
 		$this->itemStackId = $itemStackId;
 		$this->customName = $customName;
-		$this->durabilityCorrection = $durabilityCorrection;
 	}
 
 	public function getSlot() : int{ return $this->slot; }
@@ -59,16 +56,13 @@ final class ItemStackResponseSlotInfo{
 
 	public function getCustomName() : string{ return $this->customName; }
 
-	public function getDurabilityCorrection() : int{ return $this->durabilityCorrection; }
-
 	public static function read(NetworkBinaryStream $in) : self{
 		$slot = $in->getByte();
 		$hotbarSlot = $in->getByte();
 		$count = $in->getByte();
 		$itemStackId = $in->readGenericTypeNetworkId();
 		$customName = $in->getString();
-		$durabilityCorrection = $in->getVarInt();
-		return new self($slot, $hotbarSlot, $count, $itemStackId, $customName, $durabilityCorrection);
+		return new self($slot, $hotbarSlot, $count, $itemStackId, $customName);
 	}
 
 	public function write(NetworkBinaryStream $out) : void{
@@ -77,6 +71,5 @@ final class ItemStackResponseSlotInfo{
 		$out->putByte($this->count);
 		$out->writeGenericTypeNetworkId($this->itemStackId);
 		$out->putString($this->customName);
-		$out->putVarInt($this->durabilityCorrection);
 	}
 }

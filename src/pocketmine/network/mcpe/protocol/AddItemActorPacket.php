@@ -23,8 +23,9 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\utils\Binary;
 
+use pocketmine\item\Item;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
@@ -53,21 +54,31 @@ class AddItemActorPacket extends DataPacket{
 	protected function decodePayload(){
 		$this->entityUniqueId = $this->getEntityUniqueId();
 		$this->entityRuntimeId = $this->getEntityRuntimeId();
-		$this->item = ItemStackWrapper::read($this);
+
+		if($this->protocol >= ProtocolInfo::PROTOCOL_431) {
+			$this->item = ItemStackWrapper::read($this, $this->protocol);
+		} else {
+			$this->item = $this->getItemStack();
+		}
 		$this->position = $this->getVector3();
 		$this->motion = $this->getVector3();
 		$this->metadata = $this->getEntityMetadata();
-		$this->isFromFishing = $this->getBool();
+		$this->isFromFishing = (($this->get(1) !== "\x00"));
 	}
 
 	protected function encodePayload(){
 		$this->putEntityUniqueId($this->entityUniqueId ?? $this->entityRuntimeId);
 		$this->putEntityRuntimeId($this->entityRuntimeId);
-		$this->item->write($this);
+
+		if($this->protocol >= ProtocolInfo::PROTOCOL_431) {
+			$this->item->write($this);
+		} else {
+			$this->putItemStack($this->item->getItemStack());
+		}
 		$this->putVector3($this->position);
 		$this->putVector3Nullable($this->motion);
 		$this->putEntityMetadata($this->metadata);
-		$this->putBool($this->isFromFishing);
+		($this->buffer .= ($this->isFromFishing ? "\x01" : "\x00"));
 	}
 
 	public function handle(NetworkSession $session) : bool{

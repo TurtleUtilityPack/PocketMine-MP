@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\utils\Binary;
 
 use pocketmine\network\mcpe\NetworkSession;
 
@@ -36,12 +36,16 @@ class HurtArmorPacket extends DataPacket{
 	public $health;
 
 	protected function decodePayload(){
-		$this->cause = $this->getVarInt();
+		if($this->protocol >= ProtocolInfo::PROTOCOL_407) {
+			$this->cause = $this->getVarInt();
+		}
 		$this->health = $this->getVarInt();
 	}
 
 	protected function encodePayload(){
-		$this->putVarInt($this->cause);
+		if($this->protocol >= ProtocolInfo::PROTOCOL_407) {
+			$this->putVarInt($this->cause);
+		}
 		$this->putVarInt($this->health);
 	}
 

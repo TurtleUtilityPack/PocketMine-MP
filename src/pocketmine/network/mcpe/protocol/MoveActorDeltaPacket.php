@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\utils\Binary;
 
 use pocketmine\network\mcpe\NetworkSession;
 
@@ -57,9 +57,13 @@ class MoveActorDeltaPacket extends DataPacket{
 	/** @var float */
 	public $zRot = 0.0;
 
-	private function maybeReadCoord(int $flag) : float{
+	private function maybeReadCoord(int $flag) {
 		if(($this->flags & $flag) !== 0){
-			return $this->getLFloat();
+			if($this->protocol >= ProtocolInfo::PROTOCOL_419) {
+				return ((\unpack("g", $this->get(4))[1]));
+			} else {
+				return $this->getVarInt();
+			}
 		}
 		return 0;
 	}
@@ -73,7 +77,7 @@ class MoveActorDeltaPacket extends DataPacket{
 
 	protected function decodePayload(){
 		$this->entityRuntimeId = $this->getEntityRuntimeId();
-		$this->flags = $this->getLShort();
+		$this->flags = ((\unpack("v", $this->get(2))[1]));
 		$this->xPos = $this->maybeReadCoord(self::FLAG_HAS_X);
 		$this->yPos = $this->maybeReadCoord(self::FLAG_HAS_Y);
 		$this->zPos = $this->maybeReadCoord(self::FLAG_HAS_Z);
@@ -82,9 +86,16 @@ class MoveActorDeltaPacket extends DataPacket{
 		$this->zRot = $this->maybeReadRotation(self::FLAG_HAS_ROT_Z);
 	}
 
-	private function maybeWriteCoord(int $flag, float $val) : void{
+	/**
+	 * @param int|float $val
+	 */
+	private function maybeWriteCoord(int $flag, $val) : void{
 		if(($this->flags & $flag) !== 0){
-			$this->putLFloat($val);
+			if($this->protocol >= ProtocolInfo::PROTOCOL_419) {
+				($this->buffer .= (\pack("g", $val)));
+			} else {
+				$this->putVarInt((int) $val);
+			}
 		}
 	}
 
@@ -96,7 +107,7 @@ class MoveActorDeltaPacket extends DataPacket{
 
 	protected function encodePayload(){
 		$this->putEntityRuntimeId($this->entityRuntimeId);
-		$this->putLShort($this->flags);
+		($this->buffer .= (\pack("v", $this->flags)));
 		$this->maybeWriteCoord(self::FLAG_HAS_X, $this->xPos);
 		$this->maybeWriteCoord(self::FLAG_HAS_Y, $this->yPos);
 		$this->maybeWriteCoord(self::FLAG_HAS_Z, $this->zPos);

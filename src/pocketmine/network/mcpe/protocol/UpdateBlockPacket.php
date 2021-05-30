@@ -23,8 +23,9 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\utils\Binary;
 
+use pocketmine\network\mcpe\convert\block\MultiBlockMapping;
 use pocketmine\network\mcpe\NetworkSession;
 
 class UpdateBlockPacket extends DataPacket{
@@ -54,6 +55,8 @@ class UpdateBlockPacket extends DataPacket{
 	public $flags;
 	/** @var int */
 	public $dataLayerId = self::DATA_LAYER_NORMAL;
+	/** @var bool */
+	public $needConvert = true;
 
 	protected function decodePayload(){
 		$this->getBlockPosition($this->x, $this->y, $this->z);
@@ -64,7 +67,14 @@ class UpdateBlockPacket extends DataPacket{
 
 	protected function encodePayload(){
 		$this->putBlockPosition($this->x, $this->y, $this->z);
-		$this->putUnsignedVarInt($this->blockRuntimeId);
+
+		if($this->needConvert) {
+			[$id, $meta] = MultiBlockMapping::fromStaticRuntimeId($this->blockRuntimeId);
+		} else {
+			[$id, $meta] = [$this->blockRuntimeId >> 4, $this->blockRuntimeId & 0xf];
+		}
+		
+		$this->putUnsignedVarInt(MultiBlockMapping::toStaticRuntimeId($id, $meta, $this->protocol));
 		$this->putUnsignedVarInt($this->flags);
 		$this->putUnsignedVarInt($this->dataLayerId);
 	}

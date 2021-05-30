@@ -58,7 +58,7 @@ final class DeprecatedCraftingResultsStackRequestAction extends ItemStackRequest
 	public static function read(NetworkBinaryStream $in) : self{
 		$results = [];
 		for($i = 0, $len = $in->getUnsignedVarInt(); $i < $len; ++$i){
-			$results[] = $in->getItemStackWithoutStackId();
+			$results[] = $in->getItemStack();
 		}
 		$iterations = $in->getByte();
 		return new self($results, $iterations);
@@ -67,7 +67,7 @@ final class DeprecatedCraftingResultsStackRequestAction extends ItemStackRequest
 	public function write(NetworkBinaryStream $out) : void{
 		$out->putUnsignedVarInt(count($this->results));
 		foreach($this->results as $result){
-			$out->putItemStackWithoutStackId($result);
+			$out->putItemStack($result);
 		}
 		$out->putByte($this->iterations);
 	}

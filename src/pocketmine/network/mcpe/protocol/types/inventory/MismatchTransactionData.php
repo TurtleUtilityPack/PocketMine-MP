@@ -28,7 +28,7 @@ use pocketmine\network\mcpe\protocol\InventoryTransactionPacket;
 use UnexpectedValueException as PacketDecodeException;
 use function count;
 
-class MismatchTransactionData extends TransactionData{
+class MismatchTransactionData extends TransactionData {
 
 	public function getTypeId() : int{
 		return InventoryTransactionPacket::TYPE_MISMATCH;
@@ -47,4 +47,5 @@ class MismatchTransactionData extends TransactionData{
 	public static function new() : self{
 		return new self; //no arguments
 	}
+
 }

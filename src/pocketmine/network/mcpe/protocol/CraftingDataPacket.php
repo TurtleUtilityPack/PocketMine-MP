@@ -23,20 +23,18 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\utils\Binary;
 
 use pocketmine\inventory\FurnaceRecipe;
 use pocketmine\inventory\ShapedRecipe;
 use pocketmine\inventory\ShapelessRecipe;
+use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
-use pocketmine\network\mcpe\convert\ItemTranslator;
+use pocketmine\network\mcpe\convert\item\ItemTranslator;
 use pocketmine\network\mcpe\NetworkBinaryStream;
 use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\types\PotionContainerChangeRecipe;
 use pocketmine\network\mcpe\protocol\types\PotionTypeRecipe;
-#ifndef COMPILE
-use pocketmine\utils\Binary;
-#endif
 use function count;
 use function str_repeat;
 
@@ -83,6 +81,7 @@ class CraftingDataPacket extends DataPacket{
 				case self::ENTRY_SHAPELESS_CHEMISTRY:
 					$entry["recipe_id"] = $this->getString();
 					$ingredientCount = $this->getUnsignedVarInt();
+					/** @var Item */
 					$entry["input"] = [];
 					for($j = 0; $j < $ingredientCount; ++$j){
 						$entry["input"][] = $in = $this->getRecipeIngredient();
@@ -91,13 +90,15 @@ class CraftingDataPacket extends DataPacket{
 					$resultCount = $this->getUnsignedVarInt();
 					$entry["output"] = [];
 					for($k = 0; $k < $resultCount; ++$k){
-						$entry["output"][] = $this->getItemStackWithoutStackId();
+						$entry["output"][] = $this->getItemStack();
 					}
 					$entry["uuid"] = $this->getUUID()->toString();
 					$entry["block"] = $this->getString();
 					$entry["priority"] = $this->getVarInt();
-					$entry["net_id"] = $this->readGenericTypeNetworkId();
 
+					if($this->protocol >= ProtocolInfo::PROTOCOL_407) {
+						$entry["net_id"] = $this->readGenericTypeNetworkId();
+					}
 					break;
 				case self::ENTRY_SHAPED:
 				case self::ENTRY_SHAPED_CHEMISTRY:
@@ -113,25 +114,42 @@ class CraftingDataPacket extends DataPacket{
 					$resultCount = $this->getUnsignedVarInt();
 					$entry["output"] = [];
 					for($k = 0; $k < $resultCount; ++$k){
-						$entry["output"][] = $this->getItemStackWithoutStackId();
+						$entry["output"][] = $this->getItemStack();
 					}
 					$entry["uuid"] = $this->getUUID()->toString();
 					$entry["block"] = $this->getString();
 					$entry["priority"] = $this->getVarInt();
-					$entry["net_id"] = $this->readGenericTypeNetworkId();
+
+					if($this->protocol >= ProtocolInfo::PROTOCOL_407) {
+						$entry["net_id"] = $this->readGenericTypeNetworkId();
+					}
 
 					break;
 				case self::ENTRY_FURNACE:
 				case self::ENTRY_FURNACE_DATA:
 					$inputIdNet = $this->getVarInt();
-					if($recipeType === self::ENTRY_FURNACE){
-						[$inputId, $inputData] = ItemTranslator::getInstance()->fromNetworkIdWithWildcardHandling($inputIdNet, 0x7fff);
-					}else{
-						$inputMetaNet = $this->getVarInt();
-						[$inputId, $inputData] = ItemTranslator::getInstance()->fromNetworkIdWithWildcardHandling($inputIdNet, $inputMetaNet);
+
+					if($this->protocol >= ProtocolInfo::PROTOCOL_419) {
+						if($recipeType === self::ENTRY_FURNACE){
+							[$inputId, $inputData] = ItemTranslator::getInstance()->fromNetworkIdWithWildcardHandling($inputIdNet, 0x7fff);
+						}else{
+							$inputMetaNet = $this->getVarInt();
+							[$inputId, $inputData] = ItemTranslator::getInstance()->fromNetworkIdWithWildcardHandling($inputIdNet, $inputMetaNet);
+						}
+					} else {
+						$inputId = $inputIdNet;
+						$inputData = -1;
+
+						if($recipeType === self::ENTRY_FURNACE_DATA) {
+
+							$inputData = $this->getVarInt();
+							if($inputData === 0x7fff) {
+								$inputData = -1;
+							}
+						}
 					}
 					$entry["input"] = ItemFactory::get($inputId, $inputData);
-					$entry["output"] = $out = $this->getItemStackWithoutStackId();
+					$entry["output"] = $out = $this->getItemStack();
 					if($out->getDamage() === 0x7fff){
 						$out->setDamage(0); //TODO HACK: some 1.12 furnace recipe outputs have wildcard damage values
 					}
@@ -140,7 +158,10 @@ class CraftingDataPacket extends DataPacket{
 					break;
 				case self::ENTRY_MULTI:
 					$entry["uuid"] = $this->getUUID()->toString();
-					$entry["net_id"] = $this->readGenericTypeNetworkId();
+
+					if($this->protocol >= ProtocolInfo::PROTOCOL_407) {
+						$entry["net_id"] = $this->readGenericTypeNetworkId();
+					}
 					break;
 				default:
 					throw new \UnexpectedValueException("Unhandled recipe type $recipeType!"); //do not continue attempting to decode
@@ -150,26 +171,40 @@ class CraftingDataPacket extends DataPacket{
 		for($i = 0, $count = $this->getUnsignedVarInt(); $i < $count; ++$i){
 			$inputIdNet = $this->getVarInt();
 			$inputMetaNet = $this->getVarInt();
-			[$input, $inputMeta] = ItemTranslator::getInstance()->fromNetworkId($inputIdNet, $inputMetaNet);
 			$ingredientIdNet = $this->getVarInt();
 			$ingredientMetaNet = $this->getVarInt();
-			[$ingredient, $ingredientMeta] = ItemTranslator::getInstance()->fromNetworkId($ingredientIdNet, $ingredientMetaNet);
 			$outputIdNet = $this->getVarInt();
 			$outputMetaNet = $this->getVarInt();
-			[$output, $outputMeta] = ItemTranslator::getInstance()->fromNetworkId($outputIdNet, $outputMetaNet);
+
+			if($this->protocol >= ProtocolInfo::PROTOCOL_419) {
+				[$input, $inputMeta] = ItemTranslator::getInstance()->fromNetworkId($inputIdNet, $inputMetaNet);
+				[$ingredient, $ingredientMeta] = ItemTranslator::getInstance()->fromNetworkId($ingredientIdNet, $ingredientMetaNet);
+				[$output, $outputMeta] = ItemTranslator::getInstance()->fromNetworkId($outputIdNet, $outputMetaNet);
+			} else {
+				[$input, $inputMeta]           = [$inputIdNet, $inputMetaNet];
+				[$ingredient, $ingredientMeta] = [$ingredientIdNet, $ingredientMetaNet];
+				[$output, $outputMeta]         = [$outputIdNet, $outputMetaNet];
+			}
 			$this->potionTypeRecipes[] = new PotionTypeRecipe($input, $inputMeta, $ingredient, $ingredientMeta, $output, $outputMeta);
 		}
 		for($i = 0, $count = $this->getUnsignedVarInt(); $i < $count; ++$i){
 			//TODO: we discard inbound ID here, not safe because netID on its own might map to internalID+internalMeta for us
 			$inputIdNet = $this->getVarInt();
-			[$input, ] = ItemTranslator::getInstance()->fromNetworkId($inputIdNet, 0);
 			$ingredientIdNet = $this->getVarInt();
-			[$ingredient, ] = ItemTranslator::getInstance()->fromNetworkId($ingredientIdNet, 0);
 			$outputIdNet = $this->getVarInt();
-			[$output, ] = ItemTranslator::getInstance()->fromNetworkId($outputIdNet, 0);
+
+			if($this->protocol >= ProtocolInfo::PROTOCOL_419) {
+				[$input, ] = ItemTranslator::getInstance()->fromNetworkId($inputIdNet, 0);
+				[$ingredient, ] = ItemTranslator::getInstance()->fromNetworkId($ingredientIdNet, 0);
+				[$output, ] = ItemTranslator::getInstance()->fromNetworkId($outputIdNet, 0);
+			} else {
+				$input = $inputIdNet;
+				$ingredient = $ingredientIdNet;
+				$output = $outputIdNet;
+			}
 			$this->potionContainerRecipes[] = new PotionContainerChangeRecipe($input, $ingredient, $output);
 		}
-		$this->cleanRecipes = $this->getBool();
+		$this->cleanRecipes = (($this->get(1) !== "\x00"));
 	}
 
 	/**
@@ -189,7 +224,7 @@ class CraftingDataPacket extends DataPacket{
 	}
 
 	private static function writeShapelessRecipe(ShapelessRecipe $recipe, NetworkBinaryStream $stream, int $pos) : int{
-		$stream->putString(Binary::writeInt($pos)); //some kind of recipe ID, doesn't matter what it is as long as it's unique
+		$stream->putString((\pack("N", $pos))); //some kind of recipe ID, doesn't matter what it is as long as it's unique
 		$stream->putUnsignedVarInt($recipe->getIngredientCount());
 		foreach($recipe->getIngredientList() as $item){
 			$stream->putRecipeIngredient($item);
@@ -198,19 +233,21 @@ class CraftingDataPacket extends DataPacket{
 		$results = $recipe->getResults();
 		$stream->putUnsignedVarInt(count($results));
 		foreach($results as $item){
-			$stream->putItemStackWithoutStackId($item);
+			$stream->putItemStack($item);
 		}
 
 		$stream->put(str_repeat("\x00", 16)); //Null UUID
 		$stream->putString("crafting_table"); //TODO: blocktype (no prefix) (this might require internal API breaks)
 		$stream->putVarInt(50); //TODO: priority
-		$stream->writeGenericTypeNetworkId($pos); //TODO: ANOTHER recipe ID, only used on the network
 
+		if($stream->getProtocol() >= ProtocolInfo::PROTOCOL_407) {
+			$stream->writeGenericTypeNetworkId($pos); //TODO: ANOTHER recipe ID, only used on the network
+		}
 		return CraftingDataPacket::ENTRY_SHAPELESS;
 	}
 
 	private static function writeShapedRecipe(ShapedRecipe $recipe, NetworkBinaryStream $stream, int $pos) : int{
-		$stream->putString(Binary::writeInt($pos)); //some kind of recipe ID, doesn't matter what it is as long as it's unique
+		$stream->putString((\pack("N", $pos))); //some kind of recipe ID, doesn't matter what it is as long as it's unique
 		$stream->putVarInt($recipe->getWidth());
 		$stream->putVarInt($recipe->getHeight());
 
@@ -223,30 +260,45 @@ class CraftingDataPacket extends DataPacket{
 		$results = $recipe->getResults();
 		$stream->putUnsignedVarInt(count($results));
 		foreach($results as $item){
-			$stream->putItemStackWithoutStackId($item);
+			$stream->putItemStack($item);
 		}
 
 		$stream->put(str_repeat("\x00", 16)); //Null UUID
 		$stream->putString("crafting_table"); //TODO: blocktype (no prefix) (this might require internal API breaks)
 		$stream->putVarInt(50); //TODO: priority
-		$stream->writeGenericTypeNetworkId($pos); //TODO: ANOTHER recipe ID, only used on the network
 
+		if($stream->getProtocol() >= ProtocolInfo::PROTOCOL_407) {
+			$stream->writeGenericTypeNetworkId($pos); //TODO: ANOTHER recipe ID, only used on the network
+		}
 		return CraftingDataPacket::ENTRY_SHAPED;
 	}
 
 	private static function writeFurnaceRecipe(FurnaceRecipe $recipe, NetworkBinaryStream $stream) : int{
 		$input = $recipe->getInput();
-		if($input->hasAnyDamageValue()){
-			[$netId, ] = ItemTranslator::getInstance()->toNetworkId($input->getId(), 0);
-			$netData = 0x7fff;
-		}else{
-			[$netId, $netData] = ItemTranslator::getInstance()->toNetworkId($input->getId(), $input->getDamage());
+		$result = CraftingDataPacket::ENTRY_FURNACE_DATA;
+
+		if($stream->getProtocol() >= ProtocolInfo::PROTOCOL_419) {
+			if($input->hasAnyDamageValue()){
+				[$netId, ] = ItemTranslator::getInstance()->toNetworkId($input->getId(), 0);
+				$netData = 0x7fff;
+			}else{
+				[$netId, $netData] = ItemTranslator::getInstance()->toNetworkId($input->getId(), $input->getDamage());
+			}
+			$stream->putVarInt($netId);
+			$stream->putVarInt($netData);
+		} else {
+			$stream->putVarInt($input->getId());
+
+			if(!$input->hasAnyDamageValue()){ //Data recipe
+				$stream->putVarInt($input->getDamage());
+			} else {
+				$result = CraftingDataPacket::ENTRY_FURNACE;
+			}
 		}
-		$stream->putVarInt($netId);
-		$stream->putVarInt($netData);
-		$stream->putItemStackWithoutStackId($recipe->getResult());
+		$stream->putItemStack($recipe->getResult());
 		$stream->putString("furnace"); //TODO: blocktype (no prefix) (this might require internal API breaks)
-		return CraftingDataPacket::ENTRY_FURNACE_DATA;
+
+		return $result;
 	}
 
 	/**
@@ -274,12 +326,14 @@ class CraftingDataPacket extends DataPacket{
 		$this->putUnsignedVarInt(count($this->entries));
 
 		$writer = new NetworkBinaryStream();
+		$writer->setProtocol($this->protocol);
+
 		$counter = 0;
 		foreach($this->entries as $d){
 			$entryType = self::writeEntry($d, $writer, $counter++);
 			if($entryType >= 0){
 				$this->putVarInt($entryType);
-				$this->put($writer->getBuffer());
+				($this->buffer .= $writer->getBuffer());
 			}else{
 				$this->putVarInt(-1);
 			}
@@ -302,7 +356,7 @@ class CraftingDataPacket extends DataPacket{
 			$this->putVarInt($recipe->getOutputItemId());
 		}
 
-		$this->putBool($this->cleanRecipes);
+		($this->buffer .= ($this->cleanRecipes ? "\x01" : "\x00"));
 	}
 
 	public function handle(NetworkSession $session) : bool{

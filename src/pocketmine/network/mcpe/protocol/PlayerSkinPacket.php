@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\utils\Binary;
 
 use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\types\SkinData;
@@ -46,7 +46,10 @@ class PlayerSkinPacket extends DataPacket{
 		$this->skin = $this->getSkin();
 		$this->newSkinName = $this->getString();
 		$this->oldSkinName = $this->getString();
-		$this->skin->setVerified($this->getBool());
+
+		if($this->protocol >= ProtocolInfo::PROTOCOL_407) {
+			$this->skin->setVerified((($this->get(1) !== "\x00")));
+		}
 	}
 
 	protected function encodePayload(){
@@ -54,7 +57,10 @@ class PlayerSkinPacket extends DataPacket{
 		$this->putSkin($this->skin);
 		$this->putString($this->newSkinName);
 		$this->putString($this->oldSkinName);
-		$this->putBool($this->skin->isVerified());
+
+		if($this->protocol >= ProtocolInfo::PROTOCOL_407) {
+			($this->buffer .= ($this->skin->isVerified() ? "\x01" : "\x00"));
+		}
 	}
 
 	public function handle(NetworkSession $session) : bool{

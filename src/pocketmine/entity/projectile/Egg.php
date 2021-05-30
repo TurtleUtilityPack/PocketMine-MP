@@ -34,8 +34,10 @@ class Egg extends Throwable{
 	//TODO: spawn chickens on collision
 
 	protected function onHit(ProjectileHitEvent $event) : void{
-		for($i = 0; $i < 6; ++$i){
-			$this->level->addParticle(new ItemBreakParticle($this, ItemFactory::get(Item::EGG)));
+		if($this->server->getProperty('definitions.particles.enabled', true) && $this->server->getProperty('definitions.particles.egg-hit', true)) {
+			for($i = 0; $i < 6; ++$i){
+				$this->level->addParticle(new ItemBreakParticle($this, ItemFactory::get(Item::EGG)));
+			}
 		}
 	}
 }

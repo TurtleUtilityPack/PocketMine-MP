@@ -23,12 +23,11 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\utils\Binary;
 
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\types\InputMode;
-use pocketmine\network\mcpe\protocol\types\PlayerAuthInputFlags;
 use pocketmine\network\mcpe\protocol\types\PlayMode;
 use function assert;
 
@@ -61,7 +60,6 @@ class PlayerAuthInputPacket extends DataPacket/* implements ServerboundPacket*/{
 	private $delta;
 
 	/**
-	 * @param int          $inputFlags @see InputFlags
 	 * @param int          $inputMode @see InputMode
 	 * @param int          $playMode @see PlayMode
 	 * @param Vector3|null $vrGazeDirection only used when PlayMode::VR
@@ -113,9 +111,6 @@ class PlayerAuthInputPacket extends DataPacket/* implements ServerboundPacket*/{
 		return $this->moveVecZ;
 	}
 
-	/**
-	 * @see PlayerAuthInputFlags
-	 */
 	public function getInputFlags() : int{
 		return $this->inputFlags;
 	}
@@ -143,29 +138,44 @@ class PlayerAuthInputPacket extends DataPacket/* implements ServerboundPacket*/{
 	public function getDelta() : Vector3{ return $this->delta; }
 
 	protected function decodePayload() : void{
-		$this->pitch = $this->getLFloat();
-		$this->yaw = $this->getLFloat();
+		if($this->protocol >= ProtocolInfo::PROTOCOL_419) {
+			$this->pitch = ((\unpack("g", $this->get(4))[1]));
+			$this->yaw = ((\unpack("g", $this->get(4))[1]));
+		} else {
+			$this->yaw = ((\unpack("g", $this->get(4))[1]));
+			$this->pitch = ((\unpack("g", $this->get(4))[1]));
+		}
 		$this->position = $this->getVector3();
-		$this->moveVecX = $this->getLFloat();
-		$this->moveVecZ = $this->getLFloat();
-		$this->headYaw = $this->getLFloat();
+		$this->moveVecX = ((\unpack("g", $this->get(4))[1]));
+		$this->moveVecZ = ((\unpack("g", $this->get(4))[1]));
+		$this->headYaw = ((\unpack("g", $this->get(4))[1]));
 		$this->inputFlags = $this->getUnsignedVarLong();
 		$this->inputMode = $this->getUnsignedVarInt();
 		$this->playMode = $this->getUnsignedVarInt();
 		if($this->playMode === PlayMode::VR){
 			$this->vrGazeDirection = $this->getVector3();
 		}
-		$this->tick = $this->getUnsignedVarLong();
-		$this->delta = $this->getVector3();
+		if($this->protocol >= ProtocolInfo::PROTOCOL_419) {
+			$this->tick = $this->getUnsignedVarLong();
+			$this->delta = $this->getVector3();
+		} else {
+			$this->delta = new Vector3();
+			$this->tick = 0;
+		}
 	}
 
-	protected function encodePayload() : void{
-		$this->putLFloat($this->pitch);
-		$this->putLFloat($this->yaw);
+	protected function encodePayload() : void {
+		if($this->protocol >= ProtocolInfo::PROTOCOL_419) {
+			($this->buffer .= (\pack("g", $this->pitch)));
+			($this->buffer .= (\pack("g", $this->yaw)));
+		} else {
+			($this->buffer .= (\pack("g", $this->yaw)));
+			($this->buffer .= (\pack("g", $this->pitch)));
+		}
 		$this->putVector3($this->position);
-		$this->putLFloat($this->moveVecX);
-		$this->putLFloat($this->moveVecZ);
-		$this->putLFloat($this->headYaw);
+		($this->buffer .= (\pack("g", $this->moveVecX)));
+		($this->buffer .= (\pack("g", $this->moveVecZ)));
+		($this->buffer .= (\pack("g", $this->headYaw)));
 		$this->putUnsignedVarLong($this->inputFlags);
 		$this->putUnsignedVarInt($this->inputMode);
 		$this->putUnsignedVarInt($this->playMode);
@@ -173,8 +183,10 @@ class PlayerAuthInputPacket extends DataPacket/* implements ServerboundPacket*/{
 			assert($this->vrGazeDirection !== null);
 			$this->putVector3($this->vrGazeDirection);
 		}
-		$this->putUnsignedVarLong($this->tick);
-		$this->putVector3($this->delta);
+		if($this->protocol >= ProtocolInfo::PROTOCOL_419) {
+			$this->putUnsignedVarLong($this->tick);
+			$this->putVector3($this->delta);
+		}
 	}
 
 	public function handle(NetworkSession $handler) : bool{

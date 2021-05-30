@@ -3,12 +3,86 @@
 # Some of these settings are safe, others can break your server if modified incorrectly
 # New settings/defaults won't appear automatically in this file when upgrading.
 
+definitions:
+  sounds:
+    # Use esta opção para ativar/desativar todos sons usadas pela API
+    enabled: true
+    # Som de colocar blocos?
+    place-block: true
+    # Som de explosão?
+    huge-explosion: true
+    # Som de hit?
+    hit-sound: false
+
+  particles:
+    # Use esta opção para ativar/desativar todas partículas usadas pela API
+    enabled: true
+    # Partículas de explosão?
+    huge-explosion: true
+    # Partículas de quebrar blocos
+    destroy-block: true
+    # Partículas de colisão de SnowBall
+    snowball-hit: false
+    # Partículas de colisão de Eggs(ovo)
+    egg-hit: false
+  
+  commands:
+    # Use esta opção para ativar/desativar todos comandos padrões da API
+    enabled: true 
+    # Defina abaixo quais comandos podem ser ativados pela API
+    # use "false" para desativar e "true" para ativar!
+    defaults:
+      # O comando /transferserver pode ser ativado?
+      transferserver: true
+      # O comando /setworldspawn pode ser ativado?
+      setworldspawn: true
+      # O comando /spawnpoint pode ser ativado?
+      spawnpoint: true
+      # O comando /difficulty pode ser ativado?
+      difficulty: true
+      # O comando /teleport ou /tp pode ser ativado?
+      teleport: true
+      # O comando /gamemode pode ser ativado?
+      gamemode: true
+      # O comando /plugins pode ser ativado?
+      plugins: true
+      # O comando /enchant pode ser ativado?
+      enchant: true
+      # O comando /effect pode ser ativado?
+      effect: true
+      # O comando /title pode ser ativado?
+      title: true
+      # O comando /kill pode ser ativado?
+      kill: false
+      # O comando /help pode ser ativado?
+      help: true
+      # O comando /tell, /msg ou /w pode ser ativado?
+      tell: true
+      # O comando /give pode ser ativado?
+      give: true
+      # O comando /list pode ser ativado?
+      list: true
+      # O comando /seed pode ser ativado?
+      seed: true
+      # O comando /time pode ser ativado?
+      time: true
+      # O comando /say pode ser ativado?
+      say: true
+      # O comando /reload pode ser ativado?
+      reload: true
+      # O comando /stop pode ser ativado?
+      stop: true
+      # O comando /deop pode ser ativado?
+      deop: true
+      # O comando /op pode ser ativado?
+      op: true
+
 settings:
   #Whether to send all strings translated to server locale or let the device handle them
   force-language: false
   shutdown-message: "Server closed"
   #Allow listing plugins via Query
-  query-plugins: true
+  query-plugins: false
   #Enable plugin and core profiling by default
   enable-profiling: false
   #Will only add results when tick measurement is below or equal to given value (default 20)
@@ -87,7 +161,7 @@ network:
   compression-level: 6
   #Use AsyncTasks for compression. Adds half/one tick delay, less CPU load on main thread
   async-compression: false
-  #Experimental. Use UPnP to automatically port forward
+  #Experimental, only for Windows. Tries to use UPnP to automatically port forward
   upnp-forwarding: false
   #Maximum size in bytes of packets sent over the network (default 1492 bytes). Packets larger than this will be
   #fragmented or split into smaller parts. Clients can request MTU sizes up to but not more than this number.
@@ -100,12 +174,19 @@ debug:
 player:
   #Choose whether to enable player data saving.
   save-player-data: true
-  #If true, checks that joining players' Xbox user ID (XUID) match what was previously recorded.
-  #This also prevents non-XBL players using XBL players' usernames to steal their data on servers with xbox-auth=off.
-  verify-xuid: true
+  check-movement:
+      # Ao habilitar esta opção, a API tentará previnir glitches, speed e no-clip cheats
+      # OBS: isso pode causa problemas de movimentação!
+      enabled: false
+      # A opção abaixo previni que os jogadores buguem blocos indo para frente
+      # OBS: alguns erro de movimentação podem acontecer!
+      check-xz: true
+      # A opção abaixo previni que os jogadores buguem blocos indo para baixo ou para cima
+      # OBS: muitos erros de movimentação em escadas e slabs podem acontecer!
+      check-y: true
   anti-cheat:
-    #If false, will try to prevent speed and noclip cheats. May cause movement issues.
-    allow-movement-cheats: true
+    #Se false, irá previnir que os jogadores quebrem os blocos mais rápido do que o permitido.
+    allow-instant-break: false
 
 level-settings:
   #The default format that levels will use when created
@@ -135,31 +216,6 @@ chunk-generation:
 
 ticks-per:
   autosave: 6000
-
-auto-report:
-  #Send crash reports for processing
-  enabled: true
-  send-code: true
-  send-settings: true
-  send-phpinfo: false
-  use-https: true
-  host: crash.pmmp.io
-
-anonymous-statistics:
-  #Sends anonymous statistics for data aggregation, plugin usage tracking
-  enabled: false #TODO: re-enable this when we have a new stats host
-  host: stats.pocketmine.net
-
-auto-updater:
-  enabled: true
-  on-update:
-    warn-console: true
-    warn-ops: true
-  #Can be development, alpha, beta or stable.
-  preferred-channel: stable
-  #If using a development version, it will suggest changing the channel
-  suggest-channels: true
-  host: update.pmmp.io
 
 timings:
   #Choose the host to use for viewing your timings results.

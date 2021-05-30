@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\utils\Binary;
 
 use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\types\CommandOriginData;
@@ -32,11 +32,6 @@ use function count;
 
 class CommandOutputPacket extends DataPacket{
 	public const NETWORK_ID = ProtocolInfo::COMMAND_OUTPUT_PACKET;
-
-	public const TYPE_LAST = 1;
-	public const TYPE_SILENT = 2;
-	public const TYPE_ALL = 3;
-	public const TYPE_DATA_SET = 4;
 
 	/** @var CommandOriginData */
 	public $originData;
@@ -51,14 +46,14 @@ class CommandOutputPacket extends DataPacket{
 
 	protected function decodePayload(){
 		$this->originData = $this->getCommandOriginData();
-		$this->outputType = $this->getByte();
+		$this->outputType = (\ord($this->get(1)));
 		$this->successCount = $this->getUnsignedVarInt();
 
 		for($i = 0, $size = $this->getUnsignedVarInt(); $i < $size; ++$i){
 			$this->messages[] = $this->getCommandMessage();
 		}
 
-		if($this->outputType === self::TYPE_DATA_SET){
+		if($this->outputType === 4){
 			$this->unknownString = $this->getString();
 		}
 	}
@@ -66,7 +61,7 @@ class CommandOutputPacket extends DataPacket{
 	protected function getCommandMessage() : CommandOutputMessage{
 		$message = new CommandOutputMessage();
 
-		$message->isInternal = $this->getBool();
+		$message->isInternal = (($this->get(1) !== "\x00"));
 		$message->messageId = $this->getString();
 
 		for($i = 0, $size = $this->getUnsignedVarInt(); $i < $size; ++$i){
@@ -78,7 +73,7 @@ class CommandOutputPacket extends DataPacket{
 
 	protected function encodePayload(){
 		$this->putCommandOriginData($this->originData);
-		$this->putByte($this->outputType);
+		($this->buffer .= \chr($this->outputType));
 		$this->putUnsignedVarInt($this->successCount);
 
 		$this->putUnsignedVarInt(count($this->messages));
@@ -86,7 +81,7 @@ class CommandOutputPacket extends DataPacket{
 			$this->putCommandMessage($message);
 		}
 
-		if($this->outputType === self::TYPE_DATA_SET){
+		if($this->outputType === 4){
 			$this->putString($this->unknownString);
 		}
 	}
@@ -95,7 +90,7 @@ class CommandOutputPacket extends DataPacket{
 	 * @return void
 	 */
 	protected function putCommandMessage(CommandOutputMessage $message){
-		$this->putBool($message->isInternal);
+		($this->buffer .= ($message->isInternal ? "\x01" : "\x00"));
 		$this->putString($message->messageId);
 
 		$this->putUnsignedVarInt(count($message->parameters));

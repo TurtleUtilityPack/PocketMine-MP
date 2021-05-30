@@ -23,10 +23,12 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe;
 
+use Exception;
 use pocketmine\event\player\PlayerCreationEvent;
 use pocketmine\network\AdvancedSourceInterface;
 use pocketmine\network\mcpe\protocol\BatchPacket;
 use pocketmine\network\mcpe\protocol\DataPacket;
+use pocketmine\network\mcpe\protocol\PacketPool;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\Network;
 use pocketmine\Player;
@@ -212,7 +214,7 @@ class RakLibInterface implements ServerInstance, AdvancedSourceInterface{
 				$info->getMaxPlayerCount(),
 				$this->rakLib->getServerId(),
 				$this->server->getName(),
-				Server::getGamemodeName(Player::getClientFriendlyGamemode($this->server->getGamemode()))
+				Server::getGamemodeName($this->server->getGamemode())
 			]) . ";"
 		);
 	}
@@ -241,7 +243,7 @@ class RakLibInterface implements ServerInstance, AdvancedSourceInterface{
 		if(isset($this->identifiers[$h = spl_object_hash($player)])){
 			$identifier = $this->identifiers[$h];
 			if(!$packet->isEncoded){
-				$packet->encode();
+				$packet->encode($player->getProtocol());
 			}
 
 			if($packet instanceof BatchPacket){

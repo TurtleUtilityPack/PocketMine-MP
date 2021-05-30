@@ -206,19 +206,6 @@ namespace pocketmine {
 
 		define('pocketmine\GIT_COMMIT', $gitHash);
 
-		$composerGitHash = InstalledVersions::getReference('pocketmine/pocketmine-mp');
-		if($composerGitHash !== null){
-			$currentGitHash = explode("-", \pocketmine\GIT_COMMIT)[0];
-			if($currentGitHash !== $composerGitHash){
-				critical_error("Composer dependencies and/or autoloader are out of sync.");
-				critical_error("- Current revision is $currentGitHash");
-				critical_error("- Composer dependencies were last synchronized for revision $composerGitHash");
-				critical_error("Out-of-sync Composer dependencies may result in crashes and classes not being found.");
-				critical_error("Please synchronize Composer dependencies before running the server.");
-				exit(1);
-			}
-		}
-
 		$opts = getopt("", ["data:", "plugins:", "no-wizard", "enable-ansi", "disable-ansi"]);
 
 		define('pocketmine\DATA', isset($opts["data"]) ? $opts["data"] . DIRECTORY_SEPARATOR : realpath(getcwd()) . DIRECTORY_SEPARATOR);
@@ -228,12 +215,7 @@ namespace pocketmine {
 			mkdir(\pocketmine\DATA, 0777, true);
 		}
 
-		$lockFile = fopen(\pocketmine\DATA . 'server.lock', "a+b");
-		if($lockFile === false){
-			critical_error("Unable to open server.lock file. Please check that the current user has read/write permissions to it.");
-			exit(1);
-		}
-		define('pocketmine\LOCK_FILE', $lockFile);
+		define('pocketmine\LOCK_FILE', fopen(\pocketmine\DATA . 'server.lock', "a+b"));
 		if(!flock(\pocketmine\LOCK_FILE, LOCK_EX | LOCK_NB)){
 			//wait for a shared lock to avoid race conditions if two servers started at the same time - this makes sure the
 			//other server wrote its PID and released exclusive lock before we get our lock

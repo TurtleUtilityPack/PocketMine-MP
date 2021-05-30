@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\utils\Binary;
 
 use pocketmine\network\mcpe\NetworkBinaryStream;
 use pocketmine\network\mcpe\NetworkSession;
@@ -34,9 +34,6 @@ use function strlen;
 use function zlib_decode;
 use function zlib_encode;
 use const ZLIB_ENCODING_RAW;
-#ifndef COMPILE
-use pocketmine\utils\Binary;
-#endif
 
 class BatchPacket extends DataPacket{
 	public const NETWORK_ID = 0xfe;
@@ -55,7 +52,7 @@ class BatchPacket extends DataPacket{
 	}
 
 	protected function decodeHeader(){
-		$pid = $this->getByte();
+		$pid = (\ord($this->get(1)));
 		assert($pid === static::NETWORK_ID);
 	}
 
@@ -69,13 +66,17 @@ class BatchPacket extends DataPacket{
 	}
 
 	protected function encodeHeader(){
-		$this->putByte(static::NETWORK_ID);
+		($this->buffer .= \chr(static::NETWORK_ID));
 	}
 
 	protected function encodePayload(){
-		$encoded = zlib_encode($this->payload, ZLIB_ENCODING_RAW, $this->compressionLevel);
+		$encoded = zlib_encode(
+			$this->payload, 
+			($this->protocol >= ProtocolInfo::PROTOCOL_407) ? ZLIB_ENCODING_RAW : \ZLIB_ENCODING_DEFLATE,
+			$this->compressionLevel
+		);
 		if($encoded === false) throw new AssumptionFailedError("ZLIB compression failed");
-		$this->put($encoded);
+		($this->buffer .= $encoded);
 	}
 
 	/**
@@ -86,7 +87,7 @@ class BatchPacket extends DataPacket{
 			throw new \InvalidArgumentException(get_class($packet) . " cannot be put inside a BatchPacket");
 		}
 		if(!$packet->isEncoded){
-			$packet->encode();
+			$packet->encode($this->protocol);
 		}
 
 		$this->payload .= Binary::writeUnsignedVarInt(strlen($packet->buffer)) . $packet->buffer;

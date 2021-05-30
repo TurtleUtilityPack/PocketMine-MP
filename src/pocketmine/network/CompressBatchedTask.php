@@ -34,6 +34,8 @@ class CompressBatchedTask extends AsyncTask{
 	public $level = 7;
 	/** @var string */
 	public $data;
+	/** @var int */
+	public $protocol;
 
 	/**
 	 * @param Player[]    $targets
@@ -41,6 +43,7 @@ class CompressBatchedTask extends AsyncTask{
 	public function __construct(BatchPacket $batch, array $targets){
 		$this->data = $batch->payload;
 		$this->level = $batch->getCompressionLevel();
+		$this->protocol = $batch->getProtocol();
 		$this->storeLocal($targets);
 	}
 
@@ -49,13 +52,14 @@ class CompressBatchedTask extends AsyncTask{
 		$batch->payload = $this->data;
 
 		$batch->setCompressionLevel($this->level);
-		$batch->encode();
+		$batch->encode($this->protocol);
 
 		$this->setResult($batch->buffer);
 	}
 
 	public function onCompletion(Server $server){
 		$pk = new BatchPacket($this->getResult());
+		$pk->setProtocol($this->protocol);
 		$pk->isEncoded = true;
 
 		/** @var Player[] $targets */

@@ -23,12 +23,14 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol\types\inventory;
 
+use pocketmine\item\Item as ItemStack;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\NetworkBinaryStream as PacketSerializer;
 use pocketmine\network\mcpe\protocol\InventoryTransactionPacket;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\types\NetworkInventoryAction;
 
-class UseItemTransactionData extends TransactionData{
+class UseItemTransactionData extends TransactionData {
 	public const ACTION_CLICK_BLOCK = 0;
 	public const ACTION_CLICK_AIR = 1;
 	public const ACTION_BREAK_BLOCK = 2;
@@ -66,7 +68,7 @@ class UseItemTransactionData extends TransactionData{
 		return $this->hotbarSlot;
 	}
 
-	public function getItemInHand() : ItemStackWrapper{
+	public function getItemInHand() : ItemStackWrapper {
 		return $this->itemInHand;
 	}
 
@@ -93,7 +95,11 @@ class UseItemTransactionData extends TransactionData{
 		$this->blockPos = new Vector3($x, $y, $z);
 		$this->face = $stream->getVarInt();
 		$this->hotbarSlot = $stream->getVarInt();
-		$this->itemInHand = ItemStackWrapper::read($stream);
+		if($stream->getProtocol() >= ProtocolInfo::PROTOCOL_431) {
+			$this->itemInHand = ItemStackWrapper::read($stream, $stream->getProtocol());
+		} else {
+			$this->itemInHand = ItemStackWrapper::legacy($stream->getItemStack());
+		}
 		$this->playerPos = $stream->getVector3();
 		$this->clickPos = $stream->getVector3();
 		$this->blockRuntimeId = $stream->getUnsignedVarInt();
@@ -104,7 +110,11 @@ class UseItemTransactionData extends TransactionData{
 		$stream->putBlockPosition($this->blockPos->x, $this->blockPos->y, $this->blockPos->z);
 		$stream->putVarInt($this->face);
 		$stream->putVarInt($this->hotbarSlot);
-		$this->itemInHand->write($stream);
+		if($stream->getProtocol() >= ProtocolInfo::PROTOCOL_431) {
+			$this->itemInHand->write($stream);
+		} else {
+			$stream->putItemStack($this->itemInHand->getItemStack());
+		}
 		$stream->putVector3($this->playerPos);
 		$stream->putVector3($this->clickPos);
 		$stream->putUnsignedVarInt($this->blockRuntimeId);
@@ -126,4 +136,5 @@ class UseItemTransactionData extends TransactionData{
 		$result->blockRuntimeId = $blockRuntimeId;
 		return $result;
 	}
+
 }

@@ -49,21 +49,32 @@ class InventoryTransactionPacket extends DataPacket{
 	public $requestId;
 	/** @var InventoryTransactionChangedSlotsHack[] */
 	public $requestChangedSlots;
+	/** @var bool */
+	public $hasItemStackIds = false;
 	/** @var TransactionData */
 	public $trData;
 
 	protected function decodePayload() : void{
 		$in = $this;
-		$this->requestId = $in->readGenericTypeNetworkId();
-		$this->requestChangedSlots = [];
-		if($this->requestId !== 0){
-			for($i = 0, $len = $in->getUnsignedVarInt(); $i < $len; ++$i){
-				$this->requestChangedSlots[] = InventoryTransactionChangedSlotsHack::read($in);
+
+		if($this->protocol >= ProtocolInfo::PROTOCOL_407) {
+			$this->requestId = $in->readGenericTypeNetworkId();
+			$this->requestChangedSlots = [];
+			if($this->requestId !== 0){
+				for($i = 0, $len = $in->getUnsignedVarInt(); $i < $len; ++$i){
+					$this->requestChangedSlots[] = InventoryTransactionChangedSlotsHack::read($in);
+				}
 			}
+		} else {
+			$this->requestChangedSlots = [];
+			$this->requestId = 0;
 		}
 
 		$transactionType = $in->getUnsignedVarInt();
 
+		if($this->protocol >= ProtocolInfo::PROTOCOL_407 && $this->protocol <= ProtocolInfo::PROTOCOL_428) {
+			$this->hasItemStackIds = $in->getBool();
+		}
 		switch($transactionType){
 			case self::TYPE_NORMAL:
 				$this->trData = new NormalTransactionData();
@@ -84,25 +95,32 @@ class InventoryTransactionPacket extends DataPacket{
 				throw new PacketDecodeException("Unknown transaction type $transactionType");
 		}
 
-		$this->trData->decode($in);
+		$this->trData->decode($in, $this->hasItemStackIds);
 	}
 
 	protected function encodePayload() : void{
 		$out = $this;
-		$out->writeGenericTypeNetworkId($this->requestId);
-		if($this->requestId !== 0){
-			$out->putUnsignedVarInt(count($this->requestChangedSlots));
-			foreach($this->requestChangedSlots as $changedSlots){
-				$changedSlots->write($out);
+
+		if($this->protocol >= ProtocolInfo::PROTOCOL_407) {
+			$out->writeGenericTypeNetworkId($this->requestId);
+			if($this->requestId !== 0){
+				$out->putUnsignedVarInt(count($this->requestChangedSlots));
+				foreach($this->requestChangedSlots as $changedSlots){
+					$changedSlots->write($out);
+				}
 			}
 		}
 
 		$out->putUnsignedVarInt($this->trData->getTypeId());
 
-		$this->trData->encode($out);
+		if($this->protocol >= ProtocolInfo::PROTOCOL_407 && $this->protocol <= ProtocolInfo::PROTOCOL_428) {
+			$out->putBool($this->hasItemStackIds);
+		}
+		$this->trData->encode($out, $this->hasItemStackIds);
 	}
 
 	public function handle(PacketHandlerInterface $handler) : bool{
 		return $handler->handleInventoryTransaction($this);
 	}
+	
 }

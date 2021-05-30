@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\utils\Binary;
 
 use pocketmine\network\mcpe\NetworkSession;
 
@@ -36,13 +36,19 @@ class ContainerClosePacket extends DataPacket{
 	public $server = false;
 
 	protected function decodePayload(){
-		$this->windowId = $this->getByte();
-		$this->server = $this->getBool();
+		$this->windowId = (\ord($this->get(1)));
+		
+		if($this->protocol >= ProtocolInfo::PROTOCOL_419) {
+			$this->server = (($this->get(1) !== "\x00"));
+		}
 	}
 
 	protected function encodePayload(){
-		$this->putByte($this->windowId);
-		$this->putBool($this->server);
+		($this->buffer .= \chr($this->windowId));
+
+		if($this->protocol >= ProtocolInfo::PROTOCOL_419) {
+			($this->buffer .= ($this->server ? "\x01" : "\x00"));
+		}
 	}
 
 	public function handle(NetworkSession $session) : bool{

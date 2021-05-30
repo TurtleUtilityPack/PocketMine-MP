@@ -28,6 +28,7 @@ use pocketmine\network\mcpe\protocol\ActorEventPacket;
 use pocketmine\network\mcpe\protocol\ActorPickRequestPacket;
 use pocketmine\network\mcpe\protocol\AdventureSettingsPacket;
 use pocketmine\network\mcpe\protocol\AnimatePacket;
+use pocketmine\network\mcpe\protocol\BatchPacket;
 use pocketmine\network\mcpe\protocol\BlockActorDataPacket;
 use pocketmine\network\mcpe\protocol\BlockPickRequestPacket;
 use pocketmine\network\mcpe\protocol\BookEditPacket;
@@ -51,6 +52,7 @@ use pocketmine\network\mcpe\protocol\ModalFormResponsePacket;
 use pocketmine\network\mcpe\protocol\MovePlayerPacket;
 use pocketmine\network\mcpe\protocol\NetworkStackLatencyPacket;
 use pocketmine\network\mcpe\protocol\PlayerActionPacket;
+use pocketmine\network\mcpe\protocol\PlayerAuthInputPacket;
 use pocketmine\network\mcpe\protocol\PlayerHotbarPacket;
 use pocketmine\network\mcpe\protocol\PlayerInputPacket;
 use pocketmine\network\mcpe\protocol\PlayerSkinPacket;
@@ -68,6 +70,9 @@ use pocketmine\network\mcpe\protocol\types\SkinAdapterSingleton;
 use pocketmine\Player;
 use pocketmine\Server;
 use pocketmine\timings\Timings;
+use ReflectionClass;
+use stdClass;
+
 use function base64_encode;
 use function bin2hex;
 use function implode;
@@ -90,6 +95,9 @@ class PlayerNetworkSessionAdapter extends NetworkSession{
 		$this->player = $player;
 	}
 
+	/** @var int */
+	private $stupidFixOfClientGlitch = 0;
+
 	public function handleDataPacket(DataPacket $packet){
 		if(!$this->player->isConnected()){
 			return;
@@ -98,7 +106,32 @@ class PlayerNetworkSessionAdapter extends NetworkSession{
 		$timings = Timings::getReceiveDataPacketTimings($packet);
 		$timings->startTiming();
 
-		$packet->decode();
+		$packet->decode($this->player->getProtocol());
+
+		if(!($packet instanceof BatchPacket)) {
+			// fixing a stupid client glitch of a stupid way
+			// TODO: remove this
+			if($packet instanceof RequestChunkRadiusPacket) {
+				if($this->stupidFixOfClientGlitch === 3) {
+					$this->player->getInventory()->setHeldItemIndex(8, true); // come back to slot 8
+				}
+				$this->stupidFixOfClientGlitch = 1;
+			}
+			elseif($packet instanceof InteractPacket && $this->stupidFixOfClientGlitch === 1) {
+				$this->stupidFixOfClientGlitch = 2;
+			}
+			elseif($packet instanceof MobEquipmentPacket && $this->stupidFixOfClientGlitch === 2) {
+				// this glitch only happens with slot 7
+				if($packet->hotbarSlot === 7) {
+					$this->stupidFixOfClientGlitch = 3;
+					return; // we won't handle this...
+				}
+				$this->stupidFixOfClientGlitch = 0;
+			} else {
+				$this->stupidFixOfClientGlitch = 0;
+			}
+		}
+		
 		if(!$packet->feof() and !$packet->mayHaveUnreadBytes()){
 			$remains = substr($packet->buffer, $packet->offset);
 			$this->server->getLogger()->debug("Still " . strlen($remains) . " bytes unread in " . $packet->getName() . ": 0x" . bin2hex($remains));

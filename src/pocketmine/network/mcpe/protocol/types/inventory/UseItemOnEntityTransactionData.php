@@ -23,15 +23,16 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol\types\inventory;
 
+use pocketmine\item\Item as ItemStack;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\NetworkBinaryStream as PacketSerializer;
 use pocketmine\network\mcpe\protocol\InventoryTransactionPacket;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\types\NetworkInventoryAction;
 
 class UseItemOnEntityTransactionData extends TransactionData{
 	public const ACTION_INTERACT = 0;
 	public const ACTION_ATTACK = 1;
-	public const ACTION_ITEM_INTERACT = 2;
 
 	/** @var int */
 	private $entityRuntimeId;
@@ -58,7 +59,7 @@ class UseItemOnEntityTransactionData extends TransactionData{
 		return $this->hotbarSlot;
 	}
 
-	public function getItemInHand() : ItemStackWrapper{
+	public function getItemInHand() : ItemStackWrapper {
 		return $this->itemInHand;
 	}
 
@@ -78,7 +79,11 @@ class UseItemOnEntityTransactionData extends TransactionData{
 		$this->entityRuntimeId = $stream->getEntityRuntimeId();
 		$this->actionType = $stream->getUnsignedVarInt();
 		$this->hotbarSlot = $stream->getVarInt();
-		$this->itemInHand = ItemStackWrapper::read($stream);
+		if($stream->getProtocol() >= ProtocolInfo::PROTOCOL_431) {
+			$this->itemInHand = ItemStackWrapper::read($stream, $stream->getProtocol());
+		} else {
+			$this->itemInHand = ItemStackWrapper::legacy($stream->getItemStack());
+		}
 		$this->playerPos = $stream->getVector3();
 		$this->clickPos = $stream->getVector3();
 	}
@@ -87,7 +92,11 @@ class UseItemOnEntityTransactionData extends TransactionData{
 		$stream->putEntityRuntimeId($this->entityRuntimeId);
 		$stream->putUnsignedVarInt($this->actionType);
 		$stream->putVarInt($this->hotbarSlot);
-		$this->itemInHand->write($stream);
+		if($stream->getProtocol() >= ProtocolInfo::PROTOCOL_431) {
+			$this->itemInHand->write($stream);
+		} else {
+			$stream->putItemStack($this->itemInHand->getItemStack());
+		}
 		$stream->putVector3($this->playerPos);
 		$stream->putVector3($this->clickPos);
 	}

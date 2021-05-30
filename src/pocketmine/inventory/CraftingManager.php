@@ -26,6 +26,8 @@ namespace pocketmine\inventory;
 use pocketmine\item\Item;
 use pocketmine\network\mcpe\protocol\BatchPacket;
 use pocketmine\network\mcpe\protocol\CraftingDataPacket;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
+use pocketmine\network\mcpe\utils\ProtocolUtils;
 use pocketmine\Server;
 use pocketmine\timings\Timings;
 use pocketmine\utils\AssumptionFailedError;
@@ -45,7 +47,7 @@ class CraftingManager{
 	/** @var FurnaceRecipe[] */
 	protected $furnaceRecipes = [];
 
-	/** @var BatchPacket|null */
+	/** @var BatchPacket[] */
 	private $craftingDataCache;
 
 	public function __construct(){
@@ -88,15 +90,16 @@ class CraftingManager{
 				Item::jsonDeserialize($recipe["input"]))
 			);
 		}
-
-		$this->buildCraftingDataCache();
 	}
 
 	/**
 	 * Rebuilds the cached CraftingDataPacket.
 	 */
-	public function buildCraftingDataCache() : void{
+	public function buildCraftingDataCache(int $protocol = ProtocolInfo::CURRENT_PROTOCOL) : void{
 		Timings::$craftingDataCacheRebuildTimer->startTiming();
+
+		$protocol = ProtocolUtils::convertToCrafting($protocol);
+
 		$pk = new CraftingDataPacket();
 		$pk->cleanRecipes = true;
 
@@ -115,26 +118,28 @@ class CraftingManager{
 			$pk->addFurnaceRecipe($recipe);
 		}
 
-		$pk->encode();
+		$pk->encode($protocol);
 
 		$batch = new BatchPacket();
 		$batch->addPacket($pk);
 		$batch->setCompressionLevel(Server::getInstance()->networkCompressionLevel);
-		$batch->encode();
+		$batch->encode($protocol);
 
-		$this->craftingDataCache = $batch;
+		$this->craftingDataCache[$protocol] = $batch;
+
 		Timings::$craftingDataCacheRebuildTimer->stopTiming();
 	}
 
 	/**
 	 * Returns a pre-compressed CraftingDataPacket for sending to players. Rebuilds the cache if it is not found.
 	 */
-	public function getCraftingDataPacket() : BatchPacket{
-		if($this->craftingDataCache === null){
-			$this->buildCraftingDataCache();
-		}
+	public function getCraftingDataPacket(int $protocol = ProtocolInfo::CURRENT_PROTOCOL) : BatchPacket{
+		$protocol = ProtocolUtils::convertToCrafting($protocol);
 
-		return $this->craftingDataCache;
+		if(!isset($this->craftingDataCache[$protocol])) {
+			$this->buildCraftingDataCache($protocol);
+		}
+		return (clone $this->craftingDataCache[$protocol]);
 	}
 
 	/**

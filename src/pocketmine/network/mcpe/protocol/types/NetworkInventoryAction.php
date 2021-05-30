@@ -30,6 +30,7 @@ use pocketmine\inventory\transaction\action\InventoryAction;
 use pocketmine\inventory\transaction\action\SlotChangeAction;
 use pocketmine\item\Item;
 use pocketmine\network\mcpe\NetworkBinaryStream;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
 use pocketmine\network\mcpe\protocol\types\inventory\UIInventorySlotOffset;
 use pocketmine\Player;
@@ -37,7 +38,7 @@ use function array_key_exists;
 
 class NetworkInventoryAction{
 	public const SOURCE_CONTAINER = 0;
-
+	public const SOURCE_GLOBAL = 1;
 	public const SOURCE_WORLD = 2; //drop/pickup item entity
 	public const SOURCE_CREATIVE = 3;
 	public const SOURCE_TODO = 99999;
@@ -84,11 +85,15 @@ class NetworkInventoryAction{
 	public $oldItem;
 	/** @var ItemStackWrapper */
 	public $newItem;
+	/** @var int|null */
+	public $newItemStackId = null;
+	/** @var int */
+	public $protocol = ProtocolInfo::CURRENT_PROTOCOL;
 
 	/**
 	 * @return $this
 	 */
-	public function read(NetworkBinaryStream $packet){
+	public function read(NetworkBinaryStream $packet, bool $hasItemStackIds){
 		$this->sourceType = $packet->getUnsignedVarInt();
 
 		switch($this->sourceType){
@@ -99,6 +104,7 @@ class NetworkInventoryAction{
 				$this->sourceFlags = $packet->getUnsignedVarInt();
 				break;
 			case self::SOURCE_CREATIVE:
+			case self::SOURCE_GLOBAL:
 				break;
 			case self::SOURCE_TODO:
 				$this->windowId = $packet->getVarInt();
@@ -108,8 +114,17 @@ class NetworkInventoryAction{
 		}
 
 		$this->inventorySlot = $packet->getUnsignedVarInt();
-		$this->oldItem = ItemStackWrapper::read($packet);
-		$this->newItem = ItemStackWrapper::read($packet);
+		if($this->protocol >= ProtocolInfo::PROTOCOL_431) {
+			$this->oldItem = ItemStackWrapper::read($packet, $this->protocol);
+			$this->newItem = ItemStackWrapper::read($packet, $this->protocol);
+		} else {
+			$this->oldItem = ItemStackWrapper::legacy($packet->getItemStack());
+			$this->newItem = ItemStackWrapper::legacy($packet->getItemStack());
+		}
+
+		if($this->protocol >= ProtocolInfo::PROTOCOL_407 && $hasItemStackIds){
+			$this->newItemStackId = $packet->readGenericTypeNetworkId();
+		}
 
 		return $this;
 	}
@@ -117,7 +132,7 @@ class NetworkInventoryAction{
 	/**
 	 * @return void
 	 */
-	public function write(NetworkBinaryStream $packet){
+	public function write(NetworkBinaryStream $packet, bool $hasItemStackIds){
 		$packet->putUnsignedVarInt($this->sourceType);
 
 		switch($this->sourceType){
@@ -128,6 +143,7 @@ class NetworkInventoryAction{
 				$packet->putUnsignedVarInt($this->sourceFlags);
 				break;
 			case self::SOURCE_CREATIVE:
+			case self::SOURCE_GLOBAL:
 				break;
 			case self::SOURCE_TODO:
 				$packet->putVarInt($this->windowId);
@@ -137,8 +153,21 @@ class NetworkInventoryAction{
 		}
 
 		$packet->putUnsignedVarInt($this->inventorySlot);
-		$this->oldItem->write($packet);
-		$this->newItem->write($packet);
+
+		if($this->protocol >= ProtocolInfo::PROTOCOL_431) {
+			$this->oldItem->write($packet);
+			$this->newItem->write($packet);
+		} else {
+			$packet->putItemStack($this->oldItem->getItemStack());
+			$packet->putItemStack($this->newItem->getItemStack());
+		}
+		
+		if($this->protocol >= ProtocolInfo::PROTOCOL_407 && $hasItemStackIds) {
+			if($this->newItemStackId === null){
+				throw new \InvalidStateException("Item stack ID for newItem must be provided");
+			}
+			$packet->writeGenericTypeNetworkId($this->newItemStackId);
+		}
 	}
 
 	/**
@@ -146,9 +175,10 @@ class NetworkInventoryAction{
 	 *
 	 * @throws \UnexpectedValueException
 	 */
-	public function createInventoryAction(Player $player){
+	public function createInventoryAction(Player $player) {
 		$oldItem = $this->oldItem->getItemStack();
 		$newItem = $this->newItem->getItemStack();
+
 		if($oldItem->equalsExact($newItem)){
 			//filter out useless noise in 1.13
 			return null;

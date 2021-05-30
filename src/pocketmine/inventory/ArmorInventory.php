@@ -98,24 +98,37 @@ class ArmorInventory extends BaseInventory{
 
 		$pk = new MobArmorEquipmentPacket();
 		$pk->entityRuntimeId = $this->getHolder()->getId();
-		$pk->head = ItemStackWrapper::legacy($this->getHelmet());
+		$pk->head  = ItemStackWrapper::legacy($this->getHelmet());
 		$pk->chest = ItemStackWrapper::legacy($this->getChestplate());
-		$pk->legs = ItemStackWrapper::legacy($this->getLeggings());
-		$pk->feet = ItemStackWrapper::legacy($this->getBoots());
-		$pk->encode();
+		$pk->legs  = ItemStackWrapper::legacy($this->getLeggings());
+		$pk->feet  = ItemStackWrapper::legacy($this->getBoots());
 
-		foreach($target as $player){
-			if($player === $this->getHolder()){
-				/** @var Player $player */
+		$protocols = [];
+		$owner = null;
 
-				$pk2 = new InventorySlotPacket();
-				$pk2->windowId = $player->getWindowId($this);
-				$pk2->inventorySlot = $index;
-				$pk2->item = ItemStackWrapper::legacy($this->getItem($index));
-				$player->dataPacket($pk2);
-			}else{
-				$player->dataPacket($pk);
+		foreach($target as $player) {
+			if($player === $this->getHolder()) {
+				$owner = $player;
+				continue;
 			}
+			$protocols[$player->getProtocol()][] = $player;
+		}
+		foreach($protocols as $protocol => $players) {
+			$clonedPacket = clone $pk;
+			$clonedPacket->encode($protocol);
+
+			/** @var Player $player */
+			foreach($players as $player) {
+				$player->dataPacket($clonedPacket);
+			}
+		}
+		if($owner instanceof Player) {
+			$pk = new InventorySlotPacket();
+			$pk->windowId = $owner->getWindowId($this);
+			$pk->inventorySlot = $index;
+			$pk->item = ItemStackWrapper::legacy($this->getItem($index));
+
+			$owner->dataPacket($pk);
 		}
 	}
 
@@ -126,21 +139,35 @@ class ArmorInventory extends BaseInventory{
 
 		$pk = new MobArmorEquipmentPacket();
 		$pk->entityRuntimeId = $this->getHolder()->getId();
-		$pk->head = ItemStackWrapper::legacy($this->getHelmet());
+		$pk->head  = ItemStackWrapper::legacy($this->getHelmet());
 		$pk->chest = ItemStackWrapper::legacy($this->getChestplate());
-		$pk->legs = ItemStackWrapper::legacy($this->getLeggings());
-		$pk->feet = ItemStackWrapper::legacy($this->getBoots());
-		$pk->encode();
+		$pk->legs  = ItemStackWrapper::legacy($this->getLeggings());
+		$pk->feet  = ItemStackWrapper::legacy($this->getBoots());
 
-		foreach($target as $player){
-			if($player === $this->getHolder()){
-				$pk2 = new InventoryContentPacket();
-				$pk2->windowId = $player->getWindowId($this);
-				$pk2->items = array_map([ItemStackWrapper::class, 'legacy'], $this->getContents(true));
-				$player->dataPacket($pk2);
-			}else{
-				$player->dataPacket($pk);
+		$protocols = [];
+		$owner = null;
+
+		foreach($target as $player) {
+			if($player === $this->getHolder()) {
+				$owner = $player;
+				continue;
 			}
+			$protocols[$player->getProtocol()][] = $player;
+		}
+		foreach($protocols as $protocol => $players) {
+			$clonedPacket = clone $pk;
+			$clonedPacket->encode($protocol);
+
+			/** @var Player $player */
+			foreach($players as $player) {
+				$player->dataPacket($clonedPacket);
+			}
+		}
+		if($owner instanceof Player) {
+			$pk = new InventoryContentPacket();
+			$pk->windowId = $owner->getWindowId($this);
+			$pk->items = array_map([ItemStackWrapper::class, 'legacy'], $this->getContents(true));
+			$owner->dataPacket($pk);
 		}
 	}
 

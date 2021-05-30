@@ -32,14 +32,13 @@ use pocketmine\Player;
 use pocketmine\utils\TextFormat;
 use function count;
 
-class KillCommand extends VanillaCommand{
+class KillCommand extends VanillaCommand {
 
 	public function __construct(string $name){
 		parent::__construct(
 			$name,
 			"%pocketmine.command.kill.description",
 			"%pocketmine.command.kill.usage",
-			["suicide"]
 		);
 		$this->setPermission("pocketmine.command.kill.self;pocketmine.command.kill.other");
 	}

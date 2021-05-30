@@ -23,8 +23,9 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\utils\Binary;
 
+use pocketmine\item\Item;
 use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
 
@@ -47,18 +48,32 @@ class MobArmorEquipmentPacket extends DataPacket{
 
 	protected function decodePayload(){
 		$this->entityRuntimeId = $this->getEntityRuntimeId();
-		$this->head = ItemStackWrapper::read($this);
-		$this->chest = ItemStackWrapper::read($this);
-		$this->legs = ItemStackWrapper::read($this);
-		$this->feet = ItemStackWrapper::read($this);
+		if($this->protocol >= ProtocolInfo::PROTOCOL_431) {
+			$this->head  = ItemStackWrapper::read($this, $this->protocol);
+			$this->chest = ItemStackWrapper::read($this, $this->protocol);
+			$this->legs  = ItemStackWrapper::read($this, $this->protocol);
+			$this->feet  = ItemStackWrapper::read($this, $this->protocol);
+		} else {
+			$this->head  = ItemStackWrapper::legacy($this->getItemStack());
+			$this->chest = ItemStackWrapper::legacy($this->getItemStack());
+			$this->legs  = ItemStackWrapper::legacy($this->getItemStack());
+			$this->feet  = ItemStackWrapper::legacy($this->getItemStack());
+		}
 	}
 
 	protected function encodePayload(){
 		$this->putEntityRuntimeId($this->entityRuntimeId);
-		$this->head->write($this);
-		$this->chest->write($this);
-		$this->legs->write($this);
-		$this->feet->write($this);
+		if($this->protocol >= ProtocolInfo::PROTOCOL_431) {
+			$this->head->write($this);
+			$this->chest->write($this);
+			$this->legs->write($this);
+			$this->feet->write($this);
+		} else {
+			$this->putItemStack($this->head->getItemStack());
+			$this->putItemStack($this->chest->getItemStack());
+			$this->putItemStack($this->legs->getItemStack());
+			$this->putItemStack($this->feet->getItemStack());
+		}
 	}
 
 	public function handle(NetworkSession $session) : bool{

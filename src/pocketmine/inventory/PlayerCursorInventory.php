@@ -62,4 +62,5 @@ class PlayerCursorInventory extends BaseInventory{
 		//This workaround isn't great, but it's at least simple.
 		$this->sendSlot(0, $target);
 	}
+	
 }

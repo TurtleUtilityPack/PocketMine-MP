@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\utils\Binary;
 
 use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\types\PlayerPermissions;
@@ -54,15 +54,16 @@ class AdventureSettingsPacket extends DataPacket{
 	public const FLYING = 0x200;
 	public const MUTED = 0x400;
 
-	public const MINE = 0x01 | self::BITFLAG_SECOND_SET;
+	public const BUILD_AND_MINE = 0x01 | self::BITFLAG_SECOND_SET; // it is only BUILD on 1.16.210
 	public const DOORS_AND_SWITCHES = 0x02 | self::BITFLAG_SECOND_SET;
 	public const OPEN_CONTAINERS = 0x04 | self::BITFLAG_SECOND_SET;
 	public const ATTACK_PLAYERS = 0x08 | self::BITFLAG_SECOND_SET;
 	public const ATTACK_MOBS = 0x10 | self::BITFLAG_SECOND_SET;
 	public const OPERATOR = 0x20 | self::BITFLAG_SECOND_SET;
 	public const TELEPORT = 0x80 | self::BITFLAG_SECOND_SET;
-	public const BUILD = 0x100 | self::BITFLAG_SECOND_SET;
-	public const DEFAULT = 0x200 | self::BITFLAG_SECOND_SET;
+
+	public const BUILD = 0x100 | self::BITFLAG_SECOND_SET;   // only on 1.16.210
+	public const DEFAULT = 0x200 | self::BITFLAG_SECOND_SET; // only on 1.16.210
 
 	/** @var int */
 	public $flags = 0;
@@ -83,16 +84,19 @@ class AdventureSettingsPacket extends DataPacket{
 		$this->flags2 = $this->getUnsignedVarInt();
 		$this->playerPermission = $this->getUnsignedVarInt();
 		$this->customFlags = $this->getUnsignedVarInt();
-		$this->entityUniqueId = $this->getLLong();
+		$this->entityUniqueId = (Binary::readLLong($this->get(8)));
 	}
 
 	protected function encodePayload(){
 		$this->putUnsignedVarInt($this->flags);
 		$this->putUnsignedVarInt($this->commandPermission);
+		if($this->protocol >= ProtocolInfo::PROTOCOL_428 && ($this->flags2 & self::BUILD_AND_MINE) !== 0) {
+			$this->flags2 &= self::BUILD;
+		}
 		$this->putUnsignedVarInt($this->flags2);
 		$this->putUnsignedVarInt($this->playerPermission);
 		$this->putUnsignedVarInt($this->customFlags);
-		$this->putLLong($this->entityUniqueId);
+		($this->buffer .= (\pack("VV", $this->entityUniqueId & 0xFFFFFFFF, $this->entityUniqueId >> 32)));
 	}
 
 	public function getFlag(int $flag) : bool{

@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\utils\Binary;
 
 use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
@@ -40,16 +40,30 @@ class InventoryContentPacket extends DataPacket{
 	protected function decodePayload(){
 		$this->windowId = $this->getUnsignedVarInt();
 		$count = $this->getUnsignedVarInt();
-		for($i = 0; $i < $count; ++$i){
-			$this->items[] = ItemStackWrapper::read($this);
+
+		if($this->protocol >= ProtocolInfo::PROTOCOL_407) {
+			for($i = 0; $i < $count; ++$i){
+				$this->items[] = ItemStackWrapper::read($this, $this->protocol);
+			}
+		} else {
+			for($i = 0; $i < $count; ++$i){
+				$this->items[] = ItemStackWrapper::legacy($this->getItemStack());
+			}
 		}
 	}
 
 	protected function encodePayload(){
 		$this->putUnsignedVarInt($this->windowId);
 		$this->putUnsignedVarInt(count($this->items));
-		foreach($this->items as $item){
-			$item->write($this);
+
+		if($this->protocol >= ProtocolInfo::PROTOCOL_407) {
+			foreach($this->items as $item){
+				$item->write($this);
+			}
+		} else {
+			foreach($this->items as $item){
+				$this->putItemStack($item->getItemStack());
+			}
 		}
 	}
 

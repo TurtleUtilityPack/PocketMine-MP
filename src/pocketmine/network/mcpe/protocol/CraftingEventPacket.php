@@ -23,8 +23,9 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\utils\Binary;
 
+use pocketmine\item\Item;
 use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
 use pocketmine\utils\UUID;
@@ -51,34 +52,42 @@ class CraftingEventPacket extends DataPacket{
 	}
 
 	protected function decodePayload(){
-		$this->windowId = $this->getByte();
+		$this->windowId = (\ord($this->get(1)));
 		$this->type = $this->getVarInt();
 		$this->id = $this->getUUID();
 
 		$size = $this->getUnsignedVarInt();
-		for($i = 0; $i < $size and $i < 128; ++$i){
-			$this->input[] = ItemStackWrapper::read($this);
+		if($this->protocol >= ProtocolInfo::PROTOCOL_431) {
+			for($i = 0; $i < $size and $i < 128; ++$i) $this->input[] = ItemStackWrapper::read($this, $this->protocol);
+		} else {
+			for($i = 0; $i < $size and $i < 128; ++$i) $this->input[] = ItemStackWrapper::legacy($this->getItemStack());
 		}
 
 		$size = $this->getUnsignedVarInt();
-		for($i = 0; $i < $size and $i < 128; ++$i){
-			$this->output[] = ItemStackWrapper::read($this);
+		if($this->protocol >= ProtocolInfo::PROTOCOL_431) {
+			for($i = 0; $i < $size and $i < 128; ++$i) $this->output[] = ItemStackWrapper::read($this, $this->protocol);
+		} else {
+			for($i = 0; $i < $size and $i < 128; ++$i) $this->output[] = ItemStackWrapper::legacy($this->getItemStack());
 		}
 	}
 
 	protected function encodePayload(){
-		$this->putByte($this->windowId);
+		($this->buffer .= \chr($this->windowId));
 		$this->putVarInt($this->type);
 		$this->putUUID($this->id);
 
 		$this->putUnsignedVarInt(count($this->input));
-		foreach($this->input as $item){
-			$item->write($this);
+		if($this->protocol >= ProtocolInfo::PROTOCOL_431) {
+			foreach($this->input as $wrapper) $wrapper->write($this);
+		} else {
+			foreach($this->input as $wrapper) $this->putItemStack($wrapper->getItemStack());
 		}
 
 		$this->putUnsignedVarInt(count($this->output));
-		foreach($this->output as $item){
-			$item->write($this);
+		if($this->protocol >= ProtocolInfo::PROTOCOL_431) {
+			foreach($this->output as $wrapper) $wrapper->write($this);
+		} else {
+			foreach($this->output as $wrapper) $this->putItemStack($wrapper->getItemStack());
 		}
 	}
 

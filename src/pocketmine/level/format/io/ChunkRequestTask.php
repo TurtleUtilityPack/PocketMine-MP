@@ -27,6 +27,7 @@ use pocketmine\level\format\Chunk;
 use pocketmine\level\Level;
 use pocketmine\network\mcpe\protocol\BatchPacket;
 use pocketmine\network\mcpe\protocol\LevelChunkPacket;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\scheduler\AsyncTask;
 use pocketmine\Server;
 use function assert;
@@ -62,23 +63,32 @@ class ChunkRequestTask extends AsyncTask{
 
 	public function onRun(){
 		$pk = LevelChunkPacket::withoutCache($this->chunkX, $this->chunkZ, $this->subChunkCount, $this->chunk);
+		$result = [];
 
-		$batch = new BatchPacket();
-		$batch->addPacket($pk);
-		$batch->setCompressionLevel($this->compressionLevel);
-		$batch->encode();
+		foreach([ProtocolInfo::PROTOCOL_389, ProtocolInfo::PROTOCOL_407] as $protocol) {
+			$batch = new BatchPacket();
+			$batch->addPacket($pk);
+			$batch->setCompressionLevel($this->compressionLevel);
+			$batch->encode($protocol);
 
-		$this->setResult($batch->buffer);
+			$result[$protocol] = $batch->buffer;
+		}
+		$this->setResult($result);
 	}
 
 	public function onCompletion(Server $server){
 		$level = $server->getLevel($this->levelId);
 		if($level instanceof Level){
 			if($this->hasResult()){
-				$batch = new BatchPacket($this->getResult());
-				assert(strlen($batch->buffer) > 0);
-				$batch->isEncoded = true;
-				$level->chunkRequestCallback($this->chunkX, $this->chunkZ, $batch);
+				$batches = \array_map(function($buffer) {
+					$batch = new BatchPacket($buffer);
+					$batch->isEncoded = true;
+
+					assert(strlen($buffer) > 0);
+					return $batch;
+				}, $this->getResult());
+
+				$level->chunkRequestCallback($this->chunkX, $this->chunkZ, $batches);
 			}else{
 				$server->getLogger()->error("Chunk request for world #" . $this->levelId . ", x=" . $this->chunkX . ", z=" . $this->chunkZ . " doesn't have any result data");
 			}

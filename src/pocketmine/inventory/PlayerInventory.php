@@ -27,7 +27,9 @@ use pocketmine\entity\Human;
 use pocketmine\event\player\PlayerItemHeldEvent;
 use pocketmine\item\Item;
 use pocketmine\network\mcpe\protocol\CreativeContentPacket;
+use pocketmine\network\mcpe\protocol\InventoryContentPacket;
 use pocketmine\network\mcpe\protocol\MobEquipmentPacket;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\types\ContainerIds;
 use pocketmine\network\mcpe\protocol\types\inventory\CreativeContentEntry;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
@@ -200,10 +202,23 @@ class PlayerInventory extends BaseInventory{
 			throw new \LogicException("Cannot send creative inventory contents to non-player inventory holder");
 		}
 
-		$nextEntryId = 1;
-		$holder->sendDataPacket(CreativeContentPacket::create(array_map(function(Item $item) use (&$nextEntryId) : CreativeContentEntry{
-			return new CreativeContentEntry($nextEntryId++, clone $item);
-		}, $holder->isSpectator() ? [] : Item::getCreativeItems()))); //fill it for all gamemodes except spectator
+		if($holder->getProtocol() >= ProtocolInfo::PROTOCOL_407) {
+			$nextEntryId = 1;
+			$holder->sendDataPacket(CreativeContentPacket::create(array_map(function(Item $item) use (&$nextEntryId) : CreativeContentEntry{
+				return new CreativeContentEntry($nextEntryId++, clone $item);
+			}, $holder->isSpectator() ? [] : Item::getCreativeItems()))); //fill it for all gamemodes except spectator
+		} else {
+			$pk = new InventoryContentPacket();
+			$pk->windowId = ContainerIds::CREATIVE;
+
+			if(!$holder->isSpectator()) { //fill it for all gamemodes except spectator
+				foreach(Item::getCreativeItems() as $i => $item){
+					$pk->items[$i] = ItemStackWrapper::legacy(clone $item);
+				}
+			}
+
+			$holder->dataPacket($pk);
+		}
 	}
 
 	/**

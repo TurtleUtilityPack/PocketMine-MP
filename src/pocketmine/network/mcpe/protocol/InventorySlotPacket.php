@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\utils\Binary;
 
 use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
@@ -41,13 +41,23 @@ class InventorySlotPacket extends DataPacket{
 	protected function decodePayload(){
 		$this->windowId = $this->getUnsignedVarInt();
 		$this->inventorySlot = $this->getUnsignedVarInt();
-		$this->item = ItemStackWrapper::read($this);
+
+		if($this->protocol >= ProtocolInfo::PROTOCOL_407) {
+			$this->item = ItemStackWrapper::read($this, $this->protocol);
+		} else {
+			$this->item = ItemStackWrapper::legacy($this->getItemStack());
+		}
 	}
 
 	protected function encodePayload(){
 		$this->putUnsignedVarInt($this->windowId);
 		$this->putUnsignedVarInt($this->inventorySlot);
-		$this->item->write($this);
+
+		if($this->protocol >= ProtocolInfo::PROTOCOL_407) {
+			$this->item->write($this);
+		} else {
+			$this->putItemStack($this->item->getItemStack());
+		}
 	}
 
 	public function handle(NetworkSession $session) : bool{

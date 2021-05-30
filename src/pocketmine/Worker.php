@@ -95,7 +95,7 @@ abstract class Worker extends \Worker{
 	public function quit(){
 		$this->isKilled = true;
 
-		if(!$this->isShutdown()){
+		if($this->isRunning()){
 			while($this->unstack() !== null);
 			$this->notify();
 			$this->shutdown();

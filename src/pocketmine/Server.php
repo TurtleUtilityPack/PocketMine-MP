@@ -98,7 +98,6 @@ use pocketmine\snooze\SleeperNotifier;
 use pocketmine\tile\Tile;
 use pocketmine\timings\Timings;
 use pocketmine\timings\TimingsHandler;
-use pocketmine\updater\AutoUpdater;
 use pocketmine\utils\Config;
 use pocketmine\utils\Internet;
 use pocketmine\utils\MainLogger;
@@ -215,9 +214,6 @@ class Server{
 
 	/** @var float */
 	private $profilingTickRate = 20;
-
-	/** @var AutoUpdater */
-	private $updater;
 
 	/** @var AsyncPool */
 	private $asyncPool;
@@ -590,13 +586,6 @@ class Server{
 	 */
 	public function getLevelMetadata(){
 		return $this->levelMetadata;
-	}
-
-	/**
-	 * @return AutoUpdater
-	 */
-	public function getUpdater(){
-		return $this->updater;
 	}
 
 	/**
@@ -1033,7 +1022,7 @@ class Server{
 				$distance = $X ** 2 + $Z ** 2;
 				$chunkX = $X + $centerX;
 				$chunkZ = $Z + $centerZ;
-				$index = Level::chunkHash($chunkX, $chunkZ);
+				$index = ((($chunkX) & 0xFFFFFFFF) << 32) | (( $chunkZ) & 0xFFFFFFFF);
 				$order[$index] = $distance;
 			}
 		}
@@ -1041,7 +1030,7 @@ class Server{
 		asort($order);
 
 		foreach($order as $index => $distance){
-			Level::getXZ($index, $chunkX, $chunkZ);
+			 $chunkX = ($index >> 32);  $chunkZ = ($index & 0xFFFFFFFF) << 32 >> 32;
 			$level->populateChunk($chunkX, $chunkZ, true);
 		}
 
@@ -1461,7 +1450,8 @@ class Server{
 
 			$this->onlineMode = $this->getConfigBool("xbox-auth", true);
 			if($this->onlineMode){
-				$this->logger->info($this->getLanguage()->translateString("pocketmine.server.auth.enabled"));
+				$this->logger->notice($this->getLanguage()->translateString("pocketmine.server.auth.enabled"));
+				$this->logger->notice($this->getLanguage()->translateString("pocketmine.server.authProperty.enabled"));
 			}else{
 				$this->logger->warning($this->getLanguage()->translateString("pocketmine.server.auth.disabled"));
 				$this->logger->warning($this->getLanguage()->translateString("pocketmine.server.authWarning"));
@@ -1523,8 +1513,6 @@ class Server{
 			register_shutdown_function([$this, "crashDump"]);
 
 			$this->queryRegenerateTask = new QueryRegenerateEvent($this);
-
-			$this->updater = new AutoUpdater($this, $this->getProperty("auto-updater.host", "update.pmmp.io"));
 
 			$this->pluginManager->loadPlugins($this->pluginPath);
 			$this->enablePlugins(PluginLoadOrder::STARTUP);
@@ -1702,7 +1690,6 @@ class Server{
 	 * @return void
 	 */
 	public function broadcastPacket(array $players, DataPacket $packet){
-		$packet->encode();
 		$this->batchPackets($players, [$packet], false);
 	}
 
@@ -1720,27 +1707,33 @@ class Server{
 		}
 		Timings::$playerNetworkTimer->startTiming();
 
-		$targets = array_filter($players, function(Player $player) : bool{ return $player->isConnected(); });
+		$targets = [];
+		foreach(array_filter($players, function(Player $player) : bool{ return $player->isConnected(); }) as $player) {
+			$targets[$player->getProtocol()][] = $player;
+		}
 
-		if(count($targets) > 0){
-			$pk = new BatchPacket();
+		if(count($targets) > 0) {
+			foreach($targets as $protocol => $players) {
+				$pk = new BatchPacket();
+				$pk->setProtocol($protocol);
 
-			foreach($packets as $p){
-				$pk->addPacket($p);
-			}
+				foreach($packets as $p){
+					$pk->addPacket(clone $p);
+				}
 
-			if(Network::$BATCH_THRESHOLD >= 0 and strlen($pk->payload) >= Network::$BATCH_THRESHOLD){
-				$pk->setCompressionLevel($this->networkCompressionLevel);
-			}else{
-				$pk->setCompressionLevel(0); //Do not compress packets under the threshold
-				$forceSync = true;
-			}
+				if(Network::$BATCH_THRESHOLD >= 0 and strlen($pk->payload) >= Network::$BATCH_THRESHOLD){
+					$pk->setCompressionLevel($this->networkCompressionLevel);
+				}else{
+					$pk->setCompressionLevel(0); //Do not compress packets under the threshold
+					$forceSync = true;
+				}
 
-			if(!$forceSync and !$immediate and $this->networkCompressionAsync){
-				$task = new CompressBatchedTask($pk, $targets);
-				$this->asyncPool->submitTask($task);
-			}else{
-				$this->broadcastPacketsCallback($pk, $targets, $immediate);
+				if(!$forceSync and !$immediate and $this->networkCompressionAsync){
+					$task = new CompressBatchedTask($pk, $players);
+					$this->asyncPool->submitTask($task);
+				}else{
+					$this->broadcastPacketsCallback($pk, $players, $immediate);
+				}
 			}
 		}
 
@@ -1753,12 +1746,21 @@ class Server{
 	 * @return void
 	 */
 	public function broadcastPacketsCallback(BatchPacket $pk, array $players, bool $immediate = false){
-		if(!$pk->isEncoded){
-			$pk->encode();
-		}
 
-		foreach($players as $i){
-			$i->sendDataPacket($pk, false, $immediate);
+		$protocols = [];
+		foreach($players as $player) {
+			$protocols[$player->getProtocol()][] = $player;
+		}
+		
+		foreach($protocols as $protocol => $players) {
+			$clonedPacket = clone $pk;
+
+			if(!$clonedPacket->isEncoded){
+				$clonedPacket->encode($protocol);
+			}
+			foreach($players as $i){
+				$i->sendDataPacket($pk, false, $immediate);
+			}
 		}
 	}
 
@@ -2062,59 +2064,7 @@ class Server{
 			$dump = new CrashDump($this);
 
 			$this->logger->emergency($this->getLanguage()->translateString("pocketmine.crash.submit", [$dump->getPath()]));
-
-			if($this->getProperty("auto-report.enabled", true) !== false){
-				$report = true;
-
-				$stamp = $this->getDataPath() . "crashdumps/.last_crash";
-				$crashInterval = 120; //2 minutes
-				if(file_exists($stamp) and !($report = (filemtime($stamp) + $crashInterval < time()))){
-					$this->logger->debug("Not sending crashdump due to last crash less than $crashInterval seconds ago");
-				}
-				@touch($stamp); //update file timestamp
-
-				$plugin = $dump->getData()["plugin"];
-				if(is_string($plugin)){
-					$p = $this->pluginManager->getPlugin($plugin);
-					if($p instanceof Plugin and !($p->getPluginLoader() instanceof PharPluginLoader)){
-						$this->logger->debug("Not sending crashdump due to caused by non-phar plugin");
-						$report = false;
-					}
-				}
-
-				if($dump->getData()["error"]["type"] === \ParseError::class){
-					$report = false;
-				}
-
-				if(strrpos(\pocketmine\GIT_COMMIT, "-dirty") !== false or \pocketmine\GIT_COMMIT === str_repeat("00", 20)){
-					$this->logger->debug("Not sending crashdump due to locally modified");
-					$report = false; //Don't send crashdumps for locally modified builds
-				}
-
-				if($report){
-					$url = ((bool) $this->getProperty("auto-report.use-https", true) ? "https" : "http") . "://" . $this->getProperty("auto-report.host", "crash.pmmp.io") . "/submit/api";
-					$postUrlError = "Unknown error";
-					$reply = Internet::postURL($url, [
-						"report" => "yes",
-						"name" => $this->getName() . " " . $this->getPocketMineVersion(),
-						"email" => "crash@pocketmine.net",
-						"reportPaste" => base64_encode($dump->getEncodedData())
-					], 10, [], $postUrlError);
-
-					if($reply !== false and ($data = json_decode($reply)) !== null){
-						if(isset($data->crashId) and isset($data->crashUrl)){
-							$reportId = $data->crashId;
-							$reportUrl = $data->crashUrl;
-							$this->logger->emergency($this->getLanguage()->translateString("pocketmine.crash.archive", [$reportUrl, $reportId]));
-						}elseif(isset($data->error)){
-							$this->logger->emergency("Automatic crash report submission failed: $data->error");
-						}
-					}else{
-						$this->logger->emergency("Failed to communicate with crash archive: $postUrlError");
-					}
-				}
-			}
-		}catch(\Throwable $e){
+		} catch(\Throwable $e){
 			$this->logger->logException($e);
 			try{
 				$this->logger->critical($this->getLanguage()->translateString("pocketmine.crash.error", [$e->getMessage()]));
@@ -2298,9 +2248,6 @@ class Server{
 	 * @return void
 	 */
 	public function sendUsage($type = SendUsageTask::TYPE_STATUS){
-		if((bool) $this->getProperty("anonymous-statistics.enabled", true)){
-			$this->asyncPool->submitTask(new SendUsageTask($this, $type, $this->uniquePlayers));
-		}
 		$this->uniquePlayers = [];
 	}
 

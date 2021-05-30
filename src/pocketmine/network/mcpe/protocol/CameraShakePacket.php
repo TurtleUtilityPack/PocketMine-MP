@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\utils\Binary;
 
 use pocketmine\network\mcpe\NetworkSession;
 
@@ -33,24 +33,18 @@ class CameraShakePacket extends DataPacket/* implements ClientboundPacket*/{
 	public const TYPE_POSITIONAL = 0;
 	public const TYPE_ROTATIONAL = 1;
 
-	public const ACTION_ADD = 0;
-	public const ACTION_STOP = 1;
-
 	/** @var float */
 	private $intensity;
 	/** @var float */
 	private $duration;
 	/** @var int */
 	private $shakeType;
-	/** @var int */
-	private $shakeAction;
 
-	public static function create(float $intensity, float $duration, int $shakeType, int $shakeAction) : self{
+	public static function create(float $intensity, float $duration, int $shakeType) : self{
 		$result = new self;
 		$result->intensity = $intensity;
 		$result->duration = $duration;
 		$result->shakeType = $shakeType;
-		$result->shakeAction = $shakeAction;
 		return $result;
 	}
 
@@ -60,20 +54,16 @@ class CameraShakePacket extends DataPacket/* implements ClientboundPacket*/{
 
 	public function getShakeType() : int{ return $this->shakeType; }
 
-	public function getShakeAction() : int{ return $this->shakeAction; }
-
 	protected function decodePayload() : void{
-		$this->intensity = $this->getLFloat();
-		$this->duration = $this->getLFloat();
-		$this->shakeType = $this->getByte();
-		$this->shakeAction = $this->getByte();
+		$this->intensity = ((\unpack("g", $this->get(4))[1]));
+		$this->duration = ((\unpack("g", $this->get(4))[1]));
+		$this->shakeType = (\ord($this->get(1)));
 	}
 
 	protected function encodePayload() : void{
-		$this->putLFloat($this->intensity);
-		$this->putLFloat($this->duration);
-		$this->putByte($this->shakeType);
-		$this->putByte($this->shakeAction);
+		($this->buffer .= (\pack("g", $this->intensity)));
+		($this->buffer .= (\pack("g", $this->duration)));
+		($this->buffer .= \chr($this->shakeType));
 	}
 
 	public function handle(NetworkSession $handler) : bool{

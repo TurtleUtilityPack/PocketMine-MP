@@ -23,10 +23,12 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\utils\Binary;
 
 use pocketmine\math\Vector3;
 use pocketmine\nbt\NetworkLittleEndianNBTStream;
+use pocketmine\nbt\tag\ListTag;
+use pocketmine\network\mcpe\convert\block\MultiBlockMapping;
 use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\types\BlockPaletteEntry;
 use pocketmine\network\mcpe\protocol\types\EducationEditionOffer;
@@ -36,12 +38,18 @@ use pocketmine\network\mcpe\protocol\types\GeneratorType;
 use pocketmine\network\mcpe\protocol\types\ItemTypeEntry;
 use pocketmine\network\mcpe\protocol\types\MultiplayerGameVisibility;
 use pocketmine\network\mcpe\protocol\types\PlayerMovementSettings;
+use pocketmine\network\mcpe\protocol\types\PlayerMovementType;
 use pocketmine\network\mcpe\protocol\types\PlayerPermissions;
 use pocketmine\network\mcpe\protocol\types\SpawnSettings;
 use function count;
 
 class StartGamePacket extends DataPacket{
 	public const NETWORK_ID = ProtocolInfo::START_GAME_PACKET;
+
+	/** @var string|null */
+	private static $blockTableCache = null;
+	/** @var string|null */
+	private static $itemTableCache = null;
 
 	/** @var int */
 	public $entityUniqueId;
@@ -184,80 +192,125 @@ class StartGamePacket extends DataPacket{
 
 		$this->playerPosition = $this->getVector3();
 
-		$this->pitch = $this->getLFloat();
-		$this->yaw = $this->getLFloat();
+		$this->pitch = ((\unpack("g", $this->get(4))[1]));
+		$this->yaw = ((\unpack("g", $this->get(4))[1]));
 
 		//Level settings
 		$this->seed = $this->getVarInt();
-		$this->spawnSettings = SpawnSettings::read($this);
+		if($this->protocol >= ProtocolInfo::PROTOCOL_407) {
+			$this->spawnSettings = SpawnSettings::read($this);
+		} else {
+			$this->spawnSettings = new SpawnSettings(SpawnSettings::BIOME_TYPE_DEFAULT, '', $this->getVarInt());
+		}
 		$this->generator = $this->getVarInt();
 		$this->worldGamemode = $this->getVarInt();
 		$this->difficulty = $this->getVarInt();
 		$this->getBlockPosition($this->spawnX, $this->spawnY, $this->spawnZ);
-		$this->hasAchievementsDisabled = $this->getBool();
+		$this->hasAchievementsDisabled = (($this->get(1) !== "\x00"));
 		$this->time = $this->getVarInt();
 		$this->eduEditionOffer = $this->getVarInt();
-		$this->hasEduFeaturesEnabled = $this->getBool();
-		$this->eduProductUUID = $this->getString();
-		$this->rainLevel = $this->getLFloat();
-		$this->lightningLevel = $this->getLFloat();
-		$this->hasConfirmedPlatformLockedContent = $this->getBool();
-		$this->isMultiplayerGame = $this->getBool();
-		$this->hasLANBroadcast = $this->getBool();
+		$this->hasEduFeaturesEnabled = (($this->get(1) !== "\x00"));
+		if($this->protocol >= ProtocolInfo::PROTOCOL_407) {
+			$this->eduProductUUID = $this->getString();
+		}
+		$this->rainLevel = ((\unpack("g", $this->get(4))[1]));
+		$this->lightningLevel = ((\unpack("g", $this->get(4))[1]));
+		$this->hasConfirmedPlatformLockedContent = (($this->get(1) !== "\x00"));
+		$this->isMultiplayerGame = (($this->get(1) !== "\x00"));
+		$this->hasLANBroadcast = (($this->get(1) !== "\x00"));
 		$this->xboxLiveBroadcastMode = $this->getVarInt();
 		$this->platformBroadcastMode = $this->getVarInt();
-		$this->commandsEnabled = $this->getBool();
-		$this->isTexturePacksRequired = $this->getBool();
+		$this->commandsEnabled = (($this->get(1) !== "\x00"));
+		$this->isTexturePacksRequired = (($this->get(1) !== "\x00"));
 		$this->gameRules = $this->getGameRules();
-		$this->experiments = Experiments::read($this);
-		$this->hasBonusChestEnabled = $this->getBool();
-		$this->hasStartWithMapEnabled = $this->getBool();
+		if($this->protocol >= ProtocolInfo::PROTOCOL_419) {
+			$this->experiments = Experiments::read($this);
+		} else {
+			$this->experiments = new Experiments([], false);
+		}
+		$this->hasBonusChestEnabled = (($this->get(1) !== "\x00"));
+		$this->hasStartWithMapEnabled = (($this->get(1) !== "\x00"));
 		$this->defaultPlayerPermission = $this->getVarInt();
-		$this->serverChunkTickRadius = $this->getLInt();
-		$this->hasLockedBehaviorPack = $this->getBool();
-		$this->hasLockedResourcePack = $this->getBool();
-		$this->isFromLockedWorldTemplate = $this->getBool();
-		$this->useMsaGamertagsOnly = $this->getBool();
-		$this->isFromWorldTemplate = $this->getBool();
-		$this->isWorldTemplateOptionLocked = $this->getBool();
-		$this->onlySpawnV1Villagers = $this->getBool();
-		$this->vanillaVersion = $this->getString();
-		$this->limitedWorldWidth = $this->getLInt();
-		$this->limitedWorldLength = $this->getLInt();
-		$this->isNewNether = $this->getBool();
-		if($this->getBool()){
-			$this->experimentalGameplayOverride = $this->getBool();
-		}else{
-			$this->experimentalGameplayOverride = null;
+		$this->serverChunkTickRadius = ((\unpack("V", $this->get(4))[1] << 32 >> 32));
+		$this->hasLockedBehaviorPack = (($this->get(1) !== "\x00"));
+		$this->hasLockedResourcePack = (($this->get(1) !== "\x00"));
+		$this->isFromLockedWorldTemplate = (($this->get(1) !== "\x00"));
+		$this->useMsaGamertagsOnly = (($this->get(1) !== "\x00"));
+		$this->isFromWorldTemplate = (($this->get(1) !== "\x00"));
+		$this->isWorldTemplateOptionLocked = (($this->get(1) !== "\x00"));
+		$this->onlySpawnV1Villagers = (($this->get(1) !== "\x00"));
+
+		if($this->protocol >= ProtocolInfo::PROTOCOL_407) {
+			$this->vanillaVersion = $this->getString();
+			$this->limitedWorldWidth = ((\unpack("V", $this->get(4))[1] << 32 >> 32));
+			$this->limitedWorldLength = ((\unpack("V", $this->get(4))[1] << 32 >> 32));
+			$this->isNewNether = (($this->get(1) !== "\x00"));
+			if((($this->get(1) !== "\x00"))){
+				$this->experimentalGameplayOverride = (($this->get(1) !== "\x00"));
+			}else{
+				$this->experimentalGameplayOverride = null;
+			}
 		}
 
 		$this->levelId = $this->getString();
 		$this->worldName = $this->getString();
 		$this->premiumWorldTemplateId = $this->getString();
-		$this->isTrial = $this->getBool();
-		$this->playerMovementSettings = PlayerMovementSettings::read($this);
-		$this->currentTick = $this->getLLong();
+		$this->isTrial = (($this->get(1) !== "\x00"));
+		
+
+		if($this->protocol >= ProtocolInfo::PROTOCOL_419) {
+			$movementType = $this->getVarInt();
+			$rewindHistorySize = 0;
+			$serverAuthoritativeBlockBreaking = false;
+
+			if($this->protocol >= ProtocolInfo::PROTOCOL_428) {
+				//TODO:
+			}
+			$this->playerMovementSettings = new PlayerMovementSettings($movementType, $rewindHistorySize, $serverAuthoritativeBlockBreaking);
+		} else {
+			$this->playerMovementSettings = new PlayerMovementSettings((int) (($this->get(1) !== "\x00")));
+		}
+
+		$this->currentTick = (Binary::readLLong($this->get(8)));
 
 		$this->enchantmentSeed = $this->getVarInt();
 
-		$this->blockPalette = [];
-		for($i = 0, $len = $this->getUnsignedVarInt(); $i < $len; ++$i){
-			$blockName = $this->getString();
-			$state = $this->getNbtCompoundRoot();
-			$this->blockPalette[] = new BlockPaletteEntry($blockName, $state);
-		}
+		if($this->protocol >= ProtocolInfo::PROTOCOL_419) {
+			$this->blockPalette = [];
+			for($i = 0, $len = $this->getUnsignedVarInt(); $i < $len; ++$i){
+				$blockName = $this->getString();
+				$state = $this->getNbtCompoundRoot();
+				$this->blockPalette[] = new BlockPaletteEntry($blockName, $state);
+			}
 
-		$this->itemTable = [];
-		for($i = 0, $count = $this->getUnsignedVarInt(); $i < $count; ++$i){
-			$stringId = $this->getString();
-			$numericId = $this->getSignedLShort();
-			$isComponentBased = $this->getBool();
+			$this->itemTable = [];
+			for($i = 0, $count = $this->getUnsignedVarInt(); $i < $count; ++$i){
+				$stringId = $this->getString();
+				$numericId = ((\unpack("v", $this->get(2))[1] << 48 >> 48));
+				$isComponentBased = (($this->get(1) !== "\x00"));
 
-			$this->itemTable[] = new ItemTypeEntry($stringId, $numericId, $isComponentBased);
+				$this->itemTable[] = new ItemTypeEntry($stringId, $numericId, $isComponentBased);
+			}
+		} else {
+			$table = (new NetworkLittleEndianNBTStream())->read($this->buffer, false, $this->offset, 512);
+			if(!($table instanceof ListTag)){
+				throw new \UnexpectedValueException("Wrong block table root NBT tag type");
+			}
+
+			$this->itemTable = [];
+			for($i = 0, $count = $this->getUnsignedVarInt(); $i < $count; ++$i){
+				$id = $this->getString();
+				$legacyId = ((\unpack("v", $this->get(2))[1] << 48 >> 48));
+
+				$this->itemTable[] = new ItemTypeEntry($id, $legacyId, false);
+			}
 		}
 
 		$this->multiplayerCorrelationId = $this->getString();
-		$this->enableNewInventorySystem = $this->getBool();
+
+		if($this->protocol >= ProtocolInfo::PROTOCOL_407) {
+			$this->enableNewInventorySystem = (($this->get(1) !== "\x00"));
+		}
 	}
 
 	protected function encodePayload(){
@@ -267,76 +320,115 @@ class StartGamePacket extends DataPacket{
 
 		$this->putVector3($this->playerPosition);
 
-		$this->putLFloat($this->pitch);
-		$this->putLFloat($this->yaw);
+		($this->buffer .= (\pack("g", $this->pitch)));
+		($this->buffer .= (\pack("g", $this->yaw)));
 
 		//Level settings
 		$this->putVarInt($this->seed);
-		$this->spawnSettings->write($this);
+		if($this->protocol >= ProtocolInfo::PROTOCOL_407) {
+			$this->spawnSettings->write($this);
+		} else {
+			$this->putVarInt($this->spawnSettings->getDimension());
+		}
 		$this->putVarInt($this->generator);
 		$this->putVarInt($this->worldGamemode);
 		$this->putVarInt($this->difficulty);
 		$this->putBlockPosition($this->spawnX, $this->spawnY, $this->spawnZ);
-		$this->putBool($this->hasAchievementsDisabled);
+		($this->buffer .= ($this->hasAchievementsDisabled ? "\x01" : "\x00"));
 		$this->putVarInt($this->time);
 		$this->putVarInt($this->eduEditionOffer);
-		$this->putBool($this->hasEduFeaturesEnabled);
-		$this->putString($this->eduProductUUID);
-		$this->putLFloat($this->rainLevel);
-		$this->putLFloat($this->lightningLevel);
-		$this->putBool($this->hasConfirmedPlatformLockedContent);
-		$this->putBool($this->isMultiplayerGame);
-		$this->putBool($this->hasLANBroadcast);
+		($this->buffer .= ($this->hasEduFeaturesEnabled ? "\x01" : "\x00"));
+		if($this->protocol >= ProtocolInfo::PROTOCOL_407) {
+			$this->putString($this->eduProductUUID);
+		}
+		($this->buffer .= (\pack("g", $this->rainLevel)));
+		($this->buffer .= (\pack("g", $this->lightningLevel)));
+		($this->buffer .= ($this->hasConfirmedPlatformLockedContent ? "\x01" : "\x00"));
+		($this->buffer .= ($this->isMultiplayerGame ? "\x01" : "\x00"));
+		($this->buffer .= ($this->hasLANBroadcast ? "\x01" : "\x00"));
 		$this->putVarInt($this->xboxLiveBroadcastMode);
 		$this->putVarInt($this->platformBroadcastMode);
-		$this->putBool($this->commandsEnabled);
-		$this->putBool($this->isTexturePacksRequired);
+		($this->buffer .= ($this->commandsEnabled ? "\x01" : "\x00"));
+		($this->buffer .= ($this->isTexturePacksRequired ? "\x01" : "\x00"));
 		$this->putGameRules($this->gameRules);
-		$this->experiments->write($this);
-		$this->putBool($this->hasBonusChestEnabled);
-		$this->putBool($this->hasStartWithMapEnabled);
+		if($this->protocol >= ProtocolInfo::PROTOCOL_419) {
+			$this->experiments->write($this);
+		}
+		($this->buffer .= ($this->hasBonusChestEnabled ? "\x01" : "\x00"));
+		($this->buffer .= ($this->hasStartWithMapEnabled ? "\x01" : "\x00"));
 		$this->putVarInt($this->defaultPlayerPermission);
-		$this->putLInt($this->serverChunkTickRadius);
-		$this->putBool($this->hasLockedBehaviorPack);
-		$this->putBool($this->hasLockedResourcePack);
-		$this->putBool($this->isFromLockedWorldTemplate);
-		$this->putBool($this->useMsaGamertagsOnly);
-		$this->putBool($this->isFromWorldTemplate);
-		$this->putBool($this->isWorldTemplateOptionLocked);
-		$this->putBool($this->onlySpawnV1Villagers);
+		($this->buffer .= (\pack("V", $this->serverChunkTickRadius)));
+		($this->buffer .= ($this->hasLockedBehaviorPack ? "\x01" : "\x00"));
+		($this->buffer .= ($this->hasLockedResourcePack ? "\x01" : "\x00"));
+		($this->buffer .= ($this->isFromLockedWorldTemplate ? "\x01" : "\x00"));
+		($this->buffer .= ($this->useMsaGamertagsOnly ? "\x01" : "\x00"));
+		($this->buffer .= ($this->isFromWorldTemplate ? "\x01" : "\x00"));
+		($this->buffer .= ($this->isWorldTemplateOptionLocked ? "\x01" : "\x00"));
+		($this->buffer .= ($this->onlySpawnV1Villagers ? "\x01" : "\x00"));
 		$this->putString($this->vanillaVersion);
-		$this->putLInt($this->limitedWorldWidth);
-		$this->putLInt($this->limitedWorldLength);
-		$this->putBool($this->isNewNether);
-		$this->putBool($this->experimentalGameplayOverride !== null);
-		if($this->experimentalGameplayOverride !== null){
-			$this->putBool($this->experimentalGameplayOverride);
+		if($this->protocol >= ProtocolInfo::PROTOCOL_407) {
+			($this->buffer .= (\pack("V", $this->limitedWorldWidth)));
+			($this->buffer .= (\pack("V", $this->limitedWorldLength)));
+			($this->buffer .= ($this->isNewNether ? "\x01" : "\x00"));
+			($this->buffer .= ($this->experimentalGameplayOverride !== null ? "\x01" : "\x00"));
+			if($this->experimentalGameplayOverride !== null){
+				($this->buffer .= ($this->experimentalGameplayOverride ? "\x01" : "\x00"));
+			}
 		}
 
 		$this->putString($this->levelId);
 		$this->putString($this->worldName);
 		$this->putString($this->premiumWorldTemplateId);
-		$this->putBool($this->isTrial);
-		$this->playerMovementSettings->write($this);
-		$this->putLLong($this->currentTick);
+		($this->buffer .= ($this->isTrial ? "\x01" : "\x00"));
+
+
+		if($this->protocol >= ProtocolInfo::PROTOCOL_419) {
+			$this->putVarInt($this->playerMovementSettings->getMovementType());
+
+			if($this->protocol >= ProtocolInfo::PROTOCOL_428) {
+				$this->putVarInt($this->playerMovementSettings->getRewindHistorySize());
+				$this->putBool($this->playerMovementSettings->isServerAuthoritativeBlockBreaking());
+			}
+		} else {
+			($this->buffer .= "\x00");
+		}
+		($this->buffer .= (\pack("VV", $this->currentTick & 0xFFFFFFFF, $this->currentTick >> 32)));
 
 		$this->putVarInt($this->enchantmentSeed);
 
-		$this->putUnsignedVarInt(count($this->blockPalette));
-		$nbtWriter = new NetworkLittleEndianNBTStream();
-		foreach($this->blockPalette as $entry){
-			$this->putString($entry->getName());
-			$this->put($nbtWriter->write($entry->getStates()));
-		}
-		$this->putUnsignedVarInt(count($this->itemTable));
-		foreach($this->itemTable as $entry){
-			$this->putString($entry->getStringId());
-			$this->putLShort($entry->getNumericId());
-			$this->putBool($entry->isComponentBased());
+		if($this->protocol >= ProtocolInfo::PROTOCOL_419) {
+			$this->putUnsignedVarInt(count($this->blockPalette));
+			$nbtWriter = new NetworkLittleEndianNBTStream();
+
+			foreach($this->blockPalette as $entry){
+				$this->putString($entry->getName());
+				($this->buffer .= $nbtWriter->write($entry->getStates()));
+			}
+			$this->putUnsignedVarInt(count($this->itemTable));
+
+			foreach($this->itemTable as $entry){
+				$this->putString($entry->getStringId());
+				($this->buffer .= (\pack("v", $entry->getNumericId())));
+				($this->buffer .= ($entry->isComponentBased() ? "\x01" : "\x00"));
+			}
+		} else {
+			($this->buffer .= MultiBlockMapping::getBedrockKnownStatesRaw($this->protocol));
+
+			if(self::$itemTableCache === null) {
+				self::$itemTableCache = json_decode(file_get_contents(\pocketmine\RESOURCE_PATH.'/vanilla/407/item_id_map.json'), true);
+			}
+			$this->putUnsignedVarInt(count(self::$itemTableCache));
+
+			foreach(self::$itemTableCache as $name => $legacyId){
+				$this->putString($name);
+				($this->buffer .= (\pack("v", $legacyId)));
+			}
 		}
 
 		$this->putString($this->multiplayerCorrelationId);
-		$this->putBool($this->enableNewInventorySystem);
+		if($this->protocol >= ProtocolInfo::PROTOCOL_407) {
+			($this->buffer .= ($this->enableNewInventorySystem ? "\x01" : "\x00"));
+		}
 	}
 
 	public function handle(NetworkSession $session) : bool{

@@ -98,7 +98,9 @@ class SkinData{
 		return $this->skinId;
 	}
 
-	public function getPlayFabId() : string{ return $this->playFabId; }
+	public function getPlayFabId() : string{
+		return $this->playFabId;
+	}
 
 	public function getResourcePatch() : string{
 		return $this->resourcePatch;

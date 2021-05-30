@@ -23,8 +23,9 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\utils\Binary;
 
+use pocketmine\item\Item;
 use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
 
@@ -44,18 +45,26 @@ class MobEquipmentPacket extends DataPacket{
 
 	protected function decodePayload(){
 		$this->entityRuntimeId = $this->getEntityRuntimeId();
-		$this->item = ItemStackWrapper::read($this);
-		$this->inventorySlot = $this->getByte();
-		$this->hotbarSlot = $this->getByte();
-		$this->windowId = $this->getByte();
+		if($this->protocol >= ProtocolInfo::PROTOCOL_431) {
+			$this->item = ItemStackWrapper::read($this, $this->protocol);
+		} else {
+			$this->item = ItemStackWrapper::legacy($this->getItemStack());
+		}
+		$this->inventorySlot = (\ord($this->get(1)));
+		$this->hotbarSlot = (\ord($this->get(1)));
+		$this->windowId = (\ord($this->get(1)));
 	}
 
 	protected function encodePayload(){
 		$this->putEntityRuntimeId($this->entityRuntimeId);
-		$this->item->write($this);
-		$this->putByte($this->inventorySlot);
-		$this->putByte($this->hotbarSlot);
-		$this->putByte($this->windowId);
+		if($this->protocol >= ProtocolInfo::PROTOCOL_431) {
+			$this->item->write($this);
+		} else {
+			$this->putItemStack($this->item->getItemStack());
+		}
+		($this->buffer .= \chr($this->inventorySlot));
+		($this->buffer .= \chr($this->hotbarSlot));
+		($this->buffer .= \chr($this->windowId));
 	}
 
 	public function handle(NetworkSession $session) : bool{

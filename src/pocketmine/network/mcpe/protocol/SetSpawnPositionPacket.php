@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\utils\Binary;
 
 use pocketmine\network\mcpe\NetworkSession;
 
@@ -49,22 +49,38 @@ class SetSpawnPositionPacket extends DataPacket{
 	public $y2;
 	/** @var int */
 	public $z2;
+	/** @var bool */
+	public $spawnForced = false;
 
 	protected function decodePayload(){
 		$this->spawnType = $this->getVarInt();
 		$this->getBlockPosition($this->x, $this->y, $this->z);
-		$this->dimension = $this->getVarInt();
-		$this->getBlockPosition($this->x2, $this->y2, $this->z2);
+		if($this->protocol >= ProtocolInfo::PROTOCOL_407) {
+			$this->dimension = $this->getVarInt();
+			$this->getBlockPosition($this->x2, $this->y2, $this->z2);
+		} else {
+			$this->dimension = 0;
+			$this->x2 = $this->x;
+			$this->y2 = $this->y;
+			$this->z2 = $this->z;
+			$this->spawnForced = ($this->get(1) !== "\x00");
+		}
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() {
 		$this->putVarInt($this->spawnType);
 		$this->putBlockPosition($this->x, $this->y, $this->z);
-		$this->putVarInt($this->dimension);
-		$this->putBlockPosition($this->x2, $this->y2, $this->z2);
+
+		if($this->protocol >= ProtocolInfo::PROTOCOL_407) {
+			$this->putVarInt($this->dimension);
+			$this->putBlockPosition($this->x2, $this->y2, $this->z2);
+		} else {
+			($this->buffer .= ($this->spawnForced ? "\x01" : "\x00"));
+		}
 	}
 
 	public function handle(NetworkSession $session) : bool{
 		return $session->handleSetSpawnPosition($this);
 	}
+	
 }

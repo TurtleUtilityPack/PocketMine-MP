@@ -339,11 +339,7 @@ class Item implements ItemIds, \JsonSerializable{
 			}
 		}
 
-		if($ench->getCount() > 0){
-			$this->setNamedTagEntry($ench);
-		}else{
-			$this->removeNamedTagEntry(self::TAG_ENCH);
-		}
+		$this->setNamedTagEntry($ench);
 	}
 
 	public function removeEnchantments() : void{

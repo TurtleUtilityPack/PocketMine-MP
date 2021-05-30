@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\utils\Binary;
 
 use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\types\Experiments;
@@ -48,7 +48,7 @@ class ResourcePackStackPacket extends DataPacket{
 	public $experiments;
 
 	protected function decodePayload(){
-		$this->mustAccept = $this->getBool();
+		$this->mustAccept = (($this->get(1) !== "\x00"));
 		$behaviorPackCount = $this->getUnsignedVarInt();
 		while($behaviorPackCount-- > 0){
 			$this->getString();
@@ -63,12 +63,17 @@ class ResourcePackStackPacket extends DataPacket{
 			$this->getString();
 		}
 
-		$this->baseGameVersion = $this->getString();
-		$this->experiments = Experiments::read($this);
+		if($this->protocol >= ProtocolInfo::PROTOCOL_419) {
+			$this->baseGameVersion = $this->getString();
+			$this->experiments = Experiments::read($this);
+		} else {
+			$this->experiments = new Experiments(['' => ($this->get(1) !== "\x00")], false);
+			$this->baseGameVersion = $this->getString();
+		}
 	}
 
 	protected function encodePayload(){
-		$this->putBool($this->mustAccept);
+		($this->buffer .= ($this->mustAccept ? "\x01" : "\x00"));
 
 		$this->putUnsignedVarInt(count($this->behaviorPackStack));
 		foreach($this->behaviorPackStack as $entry){
@@ -84,8 +89,15 @@ class ResourcePackStackPacket extends DataPacket{
 			$this->putString(""); //TODO: subpack name
 		}
 
-		$this->putString($this->baseGameVersion);
-		$this->experiments->write($this);
+		if($this->protocol >= ProtocolInfo::PROTOCOL_419) {
+			$this->putString($this->baseGameVersion);
+			$this->experiments->write($this);
+		} else {
+			$enabled = \in_array(true, $this->experiments->getExperiments());
+
+			$this->putBool($enabled);
+			$this->putString($this->baseGameVersion);
+		}
 	}
 
 	public function handle(NetworkSession $session) : bool{

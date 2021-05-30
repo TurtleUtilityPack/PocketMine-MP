@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-#include <rules/DataPacket.h>
+use pocketmine\utils\Binary;
 
 use pocketmine\network\mcpe\NetworkSession;
 
@@ -48,13 +48,6 @@ class EventPacket extends DataPacket{
 	public const TYPE_CAULDRON_BLOCK_USED = 15;
 	public const TYPE_COMPOSTER_BLOCK_USED = 16;
 	public const TYPE_BELL_BLOCK_USED = 17;
-	public const TYPE_ACTOR_DEFINITION = 18;
-	public const TYPE_RAID_UPDATE = 19;
-	public const TYPE_PLAYER_MOVEMENT_ANOMALY = 20; //anti cheat
-	public const TYPE_PLAYER_MOVEMENT_CORRECTED = 21;
-	public const TYPE_HONEY_HARVESTED = 22;
-	public const TYPE_TARGET_BLOCK_HIT = 23;
-	public const TYPE_PIGLIN_BARTER = 24;
 
 	/** @var int */
 	public $playerRuntimeId;
@@ -66,7 +59,7 @@ class EventPacket extends DataPacket{
 	protected function decodePayload(){
 		$this->playerRuntimeId = $this->getEntityRuntimeId();
 		$this->eventData = $this->getVarInt();
-		$this->type = $this->getByte();
+		$this->type = (\ord($this->get(1)));
 
 		//TODO: nice confusing mess
 	}
@@ -74,7 +67,7 @@ class EventPacket extends DataPacket{
 	protected function encodePayload(){
 		$this->putEntityRuntimeId($this->playerRuntimeId);
 		$this->putVarInt($this->eventData);
-		$this->putByte($this->type);
+		($this->buffer .= \chr($this->type));
 
 		//TODO: also nice confusing mess
 	}

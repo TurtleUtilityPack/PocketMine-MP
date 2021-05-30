@@ -32,6 +32,9 @@ interface ContainerIds{
 	public const OFFHAND = 119;
 	public const ARMOR = 120;
 
+	/** only for protocol versions bellow 407 */
+	public const CREATIVE = 121;
+
 	public const HOTBAR = 122;
 	public const FIXED_INVENTORY = 123;
 	public const UI = 124;
