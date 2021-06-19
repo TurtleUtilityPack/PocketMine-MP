@@ -215,6 +215,7 @@ use function implode;
 use function in_array;
 use function is_int;
 use function is_object;
+use function sprintf;
 use function is_string;
 use function json_encode;
 use function json_last_error_msg;
@@ -2358,6 +2359,9 @@ class Player extends Human implements CommandSender, ChunkLoader, IPlayer{
 		$pk->levelId = "";
 		$pk->worldName = $this->server->getMotd();
 		$pk->playerMovementSettings = new PlayerMovementSettings(PlayerMovementType::LEGACY);
+		if($this->protocol <= ProtocolInfo::PROTOCOL_440) {
+            $pk->serverSoftwareVersion = sprintf("%s %s", \pocketmine\NAME, \pocketmine\VERSION);
+        }
 		$pk->experiments = new Experiments([], false);
 		$pk->itemTable = ItemTypeDictionary::getInstance()->getEntries();
 		$this->dataPacket($pk);
