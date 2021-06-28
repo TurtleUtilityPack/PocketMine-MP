@@ -1,24 +1,24 @@
 <?php return array (
   'root' => 
   array (
-    'pretty_version' => '3.18.2',
-    'version' => '3.18.2.0',
+    'pretty_version' => 'dev-master',
+    'version' => 'dev-master',
     'aliases' => 
     array (
     ),
-    'reference' => '599d5253dbeb9d950c44f1121dc1e2702d17cca4',
+    'reference' => '6d1562c63eda3612094dcef262bc71c57036b9b5',
     'name' => 'pocketmine/pocketmine-mp',
   ),
   'versions' => 
   array (
     'adhocore/json-comment' => 
     array (
-      'pretty_version' => '1.1.0',
-      'version' => '1.1.0.0',
+      'pretty_version' => '1.1.2',
+      'version' => '1.1.2.0',
       'aliases' => 
       array (
       ),
-      'reference' => 'cf7998124d1050b83d7d985447fefd630e09c1a2',
+      'reference' => 'fc2f76979f0a44a5f5bc2a2b600d0762fe0e78e7',
     ),
     'daverandom/callback-validator' => 
     array (
@@ -92,12 +92,12 @@
     ),
     'pocketmine/pocketmine-mp' => 
     array (
-      'pretty_version' => '3.18.2',
-      'version' => '3.18.2.0',
+      'pretty_version' => 'dev-master',
+      'version' => 'dev-master',
       'aliases' => 
       array (
       ),
-      'reference' => '599d5253dbeb9d950c44f1121dc1e2702d17cca4',
+      'reference' => '6d1562c63eda3612094dcef262bc71c57036b9b5',
     ),
     'pocketmine/raklib' => 
     array (
