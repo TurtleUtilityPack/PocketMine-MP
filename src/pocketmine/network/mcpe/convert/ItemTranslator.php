@@ -85,10 +85,6 @@ final class ItemTranslator{
 			if(!is_string($oldId) || !is_string($newId)){
 				throw new AssumptionFailedError("Invalid item table format");
 			}
-            if(!isset($legacyStringToIntMap[$oldId])){
-                //new item without a fixed legacy ID - we can't handle this right now
-                continue;
-            }
 			$simpleMappings[$newId] = $legacyStringToIntMap[$oldId];
 		}
 		foreach($legacyStringToIntMap as $stringId => $intId){
@@ -134,10 +130,7 @@ final class ItemTranslator{
 				$this->simpleNetToCoreMapping[$netId] = $simpleMappings[$stringId];
 			}elseif($stringId !== "minecraft:unknown"){
 				throw new \InvalidArgumentException("Unmapped entry " . $stringId);
-			}else{
-                //not all items have a legacy mapping - for now, we only support the ones that do
-                continue;
-            }
+			}
 		}
 	}
 

@@ -36,8 +36,6 @@ interface ProtocolInfo{
 	 * This file is generated automatically, do not edit it manually.
 	 */
 
-    /**Minecraft 1.17.0*/
-    public const PROTOCOL_440 = 440;
 	/** Minecraft 1.16.220 */
 	public const PROTOCOL_431 = 431;
 	/** Minecraft 1.16.210 */
@@ -228,9 +226,5 @@ interface ProtocolInfo{
 	public const CORRECT_PLAYER_MOVE_PREDICTION_PACKET = 0xa1;
 	public const ITEM_COMPONENT_PACKET = 0xa2;
 	public const FILTER_TEXT_PACKET = 0xa3;
-    public const SYNC_ACTOR_PROPERTY_PACKET = 0xa5;
-    public const ADD_VOLUME_ENTITY_PACKET = 0xa6;
-    public const REMOVE_VOLUME_ENTITY_PACKET = 0xa7;
-
 
 }

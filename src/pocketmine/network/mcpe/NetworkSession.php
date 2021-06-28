@@ -182,9 +182,6 @@ use pocketmine\network\mcpe\protocol\UpdateEquipPacket;
 use pocketmine\network\mcpe\protocol\UpdatePlayerGameTypePacket;
 use pocketmine\network\mcpe\protocol\UpdateSoftEnumPacket;
 use pocketmine\network\mcpe\protocol\UpdateTradePacket;
-use pocketmine\network\mcpe\protocol\AddVolumeEntityPacket;
-use pocketmine\network\mcpe\protocol\RemoveVolumeEntityPacket;
-use pocketmine\network\mcpe\protocol\SyncActorPropertyPacket;
 
 abstract class NetworkSession{
 
@@ -824,16 +821,4 @@ abstract class NetworkSession{
 	public function handleFilterText(FilterTextPacket $packet) : bool{
 		return false;
 	}
-
-    public function handleSyncActorProperty(SyncActorPropertyPacket $packet) : bool{
-        return false;
-    }
-
-    public function handleAddVolumeEntity(AddVolumeEntityPacket $packet) : bool{
-        return false;
-    }
-
-    public function handleRemoveVolumeEntity(RemoveVolumeEntityPacket $packet) : bool{
-        return false;
-    }
 }

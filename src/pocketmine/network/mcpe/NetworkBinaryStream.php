@@ -765,17 +765,14 @@ class NetworkBinaryStream extends BinaryStream{
 	 * Reads gamerules
 	 * TODO: implement this properly
 	 *
-     * @return mixed[][], members are in the structure [name => [type, value, isPlayerModifiable]]
-     * @phpstan-return array<string, array{0: int, 1: bool|int|float, 2: bool}>
+	 * @return mixed[][], members are in the structure [name => [type, value]]
+	 * @phpstan-return array<string, array{0: int, 1: bool|int|float}>
 	 */
 	public function getGameRules() : array{
 		$count = $this->getUnsignedVarInt();
 		$rules = [];
 		for($i = 0; $i < $count; ++$i){
 			$name = $this->getString();
-			if($this->protocol >= ProtocolInfo::PROTOCOL_440){
-            $isPlayerModifiable = $this->getBool();
-            }
 			$type = $this->getUnsignedVarInt();
 			$value = null;
 			switch($type){
@@ -790,11 +787,7 @@ class NetworkBinaryStream extends BinaryStream{
 					break;
 			}
 
-			if($this->protocol >= ProtocolInfo::PROTOCOL_440){
-            $rules[$name] = [$type, $value, $isPlayerModifiable];
-            }else {
-                $rules[$name] = [$type, $value];
-            }
+			$rules[$name] = [$type, $value];
 		}
 
 		return $rules;
@@ -811,9 +804,6 @@ class NetworkBinaryStream extends BinaryStream{
 		$this->putUnsignedVarInt(count($rules));
 		foreach($rules as $name => $rule){
 			$this->putString($name);
-			if($this->protocol >= ProtocolInfo::PROTOCOL_440){
-            $this->putBool($rule[2]);
-            }
 			$this->putUnsignedVarInt($rule[0]);
 			switch($rule[0]){
 				case GameRuleType::BOOL:

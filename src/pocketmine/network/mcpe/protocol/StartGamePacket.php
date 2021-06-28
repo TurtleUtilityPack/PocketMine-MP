@@ -170,8 +170,6 @@ class StartGamePacket extends DataPacket{
 	public $enchantmentSeed = 0;
 	/** @var string */
 	public $multiplayerCorrelationId = ""; //TODO: this should be filled with a UUID of some sort
-    /** @var string */
-    public $serverSoftwareVersion;
 
 	/**
 	 * @var BlockPaletteEntry[]
@@ -215,11 +213,6 @@ class StartGamePacket extends DataPacket{
 		if($this->protocol >= ProtocolInfo::PROTOCOL_407) {
 			$this->eduProductUUID = $this->getString();
 		}
-		if($this->protocol >= ProtocolInfo::PROTOCOL_440){
-		    $this->gameRules = [ //TODO: implement this
-		    "naturalregeneration" => [GameRuleType::BOOL, false, false] //Hack for client side regeneration
-	    ];
-        }
 		$this->rainLevel = ((\unpack("g", $this->get(4))[1]));
 		$this->lightningLevel = ((\unpack("g", $this->get(4))[1]));
 		$this->hasConfirmedPlatformLockedContent = (($this->get(1) !== "\x00"));
@@ -318,8 +311,6 @@ class StartGamePacket extends DataPacket{
 		if($this->protocol >= ProtocolInfo::PROTOCOL_407) {
 			$this->enableNewInventorySystem = (($this->get(1) !== "\x00"));
 		}
-
-        $this->serverSoftwareVersion = $this->getString();
 	}
 
 	protected function encodePayload(){
@@ -438,8 +429,6 @@ class StartGamePacket extends DataPacket{
 		if($this->protocol >= ProtocolInfo::PROTOCOL_407) {
 			($this->buffer .= ($this->enableNewInventorySystem ? "\x01" : "\x00"));
 		}
-
-        $this->putString($this->serverSoftwareVersion);
 	}
 
 	public function handle(NetworkSession $session) : bool{
