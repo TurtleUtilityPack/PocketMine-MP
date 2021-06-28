@@ -1,24 +1,3 @@
-## [1.1.2](https://github.com/adhocore/php-json-comment/releases/tag/1.1.2) (2021-04-09)
-
-### Miscellaneous
-- Cleanup (Jitendra Adhikari) [_16993a7_](https://github.com/adhocore/php-json-comment/commit/16993a7)
-
-### Documentations
-- Multiline string (Jitendra Adhikari) [_5b70678_](https://github.com/adhocore/php-json-comment/commit/5b70678)
-
-
-## [1.1.1](https://github.com/adhocore/php-json-comment/releases/tag/1.1.1) (2021-04-08)
-
-### Features
-- **Comment**: Support literal LF char inside string (Jitendra Adhikari) [_edfa29b_](https://github.com/adhocore/php-json-comment/commit/edfa29b)
-
-### Bug Fixes
-- **Comment**: Detect string end properly (Jitendra Adhikari) [_fc6bb56_](https://github.com/adhocore/php-json-comment/commit/fc6bb56)
-
-### Documentations
-- Add example json (Jitendra Adhikari) [_c763fba_](https://github.com/adhocore/php-json-comment/commit/c763fba)
-
-
 ## [1.1.0](https://github.com/adhocore/php-json-comment/releases/tag/1.1.0) (2021-04-05)
 
 ### Features

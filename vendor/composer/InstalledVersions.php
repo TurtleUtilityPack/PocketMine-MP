@@ -20,31 +20,29 @@ use Composer\Semver\VersionParser;
 
 
 
-
-
 class InstalledVersions
 {
 private static $installed = array (
   'root' => 
   array (
-    'pretty_version' => 'dev-master',
-    'version' => 'dev-master',
+    'pretty_version' => '3.18.2',
+    'version' => '3.18.2.0',
     'aliases' => 
     array (
     ),
-    'reference' => '6d1562c63eda3612094dcef262bc71c57036b9b5',
+    'reference' => '599d5253dbeb9d950c44f1121dc1e2702d17cca4',
     'name' => 'pocketmine/pocketmine-mp',
   ),
   'versions' => 
   array (
     'adhocore/json-comment' => 
     array (
-      'pretty_version' => '1.1.2',
-      'version' => '1.1.2.0',
+      'pretty_version' => '1.1.0',
+      'version' => '1.1.0.0',
       'aliases' => 
       array (
       ),
-      'reference' => 'fc2f76979f0a44a5f5bc2a2b600d0762fe0e78e7',
+      'reference' => 'cf7998124d1050b83d7d985447fefd630e09c1a2',
     ),
     'daverandom/callback-validator' => 
     array (
@@ -118,12 +116,12 @@ private static $installed = array (
     ),
     'pocketmine/pocketmine-mp' => 
     array (
-      'pretty_version' => 'dev-master',
-      'version' => 'dev-master',
+      'pretty_version' => '3.18.2',
+      'version' => '3.18.2.0',
       'aliases' => 
       array (
       ),
-      'reference' => '6d1562c63eda3612094dcef262bc71c57036b9b5',
+      'reference' => '599d5253dbeb9d950c44f1121dc1e2702d17cca4',
     ),
     'pocketmine/raklib' => 
     array (
@@ -169,6 +167,7 @@ $packages = array();
 foreach (self::getInstalled() as $installed) {
 $packages[] = array_keys($installed['versions']);
 }
+
 
 if (1 === \count($packages)) {
 return $packages[0];
@@ -361,7 +360,6 @@ public static function reload($data)
 self::$installed = $data;
 self::$installedByVendor = array();
 }
-
 
 
 

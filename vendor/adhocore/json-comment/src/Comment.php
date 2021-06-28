@@ -60,7 +60,6 @@ class Comment
     protected function doStrip(string $json): string
     {
         $return = '';
-        $crlf   = ["\n" => '\n', "\r" => '\r'];
 
         while (isset($json[++$this->index])) {
             list($prev, $char, $next) = $this->getSegments($json);
@@ -68,7 +67,7 @@ class Comment
             $return = $this->checkTrail($char, $return);
 
             if ($this->inStringOrCommentEnd($prev, $char, $char . $next)) {
-                $return .= $this->inStr && isset($crlf[$char]) ? $crlf[$char] : $char;
+                $return .= $char;
 
                 continue;
             }
@@ -117,17 +116,13 @@ class Comment
 
     protected function inStringOrCommentEnd(string $prev, string $char, string $next): bool
     {
-        return $this->inString($char, $prev, $next) || $this->inCommentEnd($next);
+        return $this->inString($char, $prev) || $this->inCommentEnd($next);
     }
 
-    protected function inString(string $char, string $prev, string $next): bool
+    protected function inString(string $char, string $prev): bool
     {
         if (0 === $this->comment && $char === '"' && $prev !== '\\') {
-            return $this->inStr = !$this->inStr;
-        }
-
-        if ($this->inStr && \in_array($next, ['":', '",', '"]', '"}'], true)) {
-            $this->inStr = false;
+            $this->inStr = !$this->inStr;
         }
 
         return $this->inStr;
@@ -203,8 +198,8 @@ class Comment
 
     public static function parseFromFile(string $file, bool $assoc = false, int $depth = 512, int $options = 0)
     {
-        $json = \file_get_contents($file);
+        $json = file_get_contents($file);
 
-        return static::parse(\trim($json), $assoc, $depth, $options);
+        return static::parse($json, $assoc, $depth, $options);
     }
 }
